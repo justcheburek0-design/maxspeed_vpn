@@ -42,16 +42,13 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
   Future<void> _loadApps() async {
     setState(() => _loadingApps = true);
     try {
-      const channel = MethodChannel('maxspeed.vpn');
-      final List<dynamic>? result = await channel.invokeMethod('getInstalledApps');
+      final result = await widget.vpnService.getInstalledApps();
       final apps = <InstalledApp>[];
-      if (result != null) {
-        for (final item in result) {
-          final map = item as Map;
-          final pkg = map['package'] as String? ?? '';
-          final name = map['name'] as String? ?? pkg.split('.').last;
-          if (pkg.isNotEmpty) apps.add(InstalledApp(packageName: pkg, appName: name));
-        }
+      for (final item in result) {
+        final map = item as Map;
+        final pkg = map['package'] as String? ?? '';
+        final name = map['name'] as String? ?? pkg.split('.').last;
+        if (pkg.isNotEmpty) apps.add(InstalledApp(packageName: pkg, appName: name));
       }
       apps.sort((a, b) => a.appName.compareTo(b.appName));
       setState(() => _apps = apps);

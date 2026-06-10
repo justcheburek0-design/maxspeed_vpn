@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../core/theme/app_themes.dart';
 
 class UpdateInfo {
   final String version;
@@ -35,7 +36,6 @@ class UpdateChecker {
       ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode != 200) return null;
-
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final latestVersion = (data['tag_name'] as String?)?.replaceFirst('v', '') ?? '';
       final body = data['body'] as String? ?? '';
@@ -85,7 +85,6 @@ class UpdateChecker {
   }
 
   static Future<void> downloadAndInstall(BuildContext context, UpdateInfo info) async {
-    // Показываем прогресс
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -149,7 +148,6 @@ class _DownloadDialogState extends State<_DownloadDialog> {
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri);
       } else {
-        // Fallback: через file://
         final fallbackUri = Uri.file(file.path);
         if (await canLaunchUrl(fallbackUri)) {
           await launchUrl(fallbackUri, mode: LaunchMode.externalApplication);
@@ -162,26 +160,29 @@ class _DownloadDialogState extends State<_DownloadDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = GlassTheme.of(context);
     return AlertDialog(
-      backgroundColor: const Color(0xFF1a2a1a),
-      title: Text('Обновление', style: TextStyle(color: Colors.white)),
+      backgroundColor: theme.surface,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Text('Обновление', style: TextStyle(color: theme.onSurface)),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (!_done && !_error) CircularProgressIndicator(value: _progress, color: Color(0xFFa8e63d)),
-          if (_done) Icon(Icons.check_circle, color: Colors.green, size: 48),
-          if (_error) Icon(Icons.error, color: Colors.red, size: 48),
+          if (!_done && !_error) CircularProgressIndicator(value: _progress, color: theme.primary),
+          if (_done) Icon(Icons.check_circle, color: theme.success, size: 48),
+          if (_error) Icon(Icons.error, color: theme.error, size: 48),
           const SizedBox(height: 16),
-          Text(_status, style: TextStyle(color: Colors.white70), textAlign: TextAlign.center),
+          Text(_status, style: TextStyle(color: theme.onSurfaceVariant), textAlign: TextAlign.center),
           if (!_done && !_error) const SizedBox(height: 12),
-          if (!_done && !_error) LinearProgressIndicator(value: _progress, color: Color(0xFFa8e63d)),
+          if (!_done && !_error) LinearProgressIndicator(value: _progress, color: theme.primary),
         ],
       ),
       actions: [
         if (_done || _error)
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(_done ? 'Готово' : 'Закрыть'),
+            child: Text(_done ? 'Готово' : 'Закрыть', style: TextStyle(color: theme.primary)),
           ),
       ],
     );
@@ -190,33 +191,35 @@ class _DownloadDialogState extends State<_DownloadDialog> {
 
 /// Показывает диалог обновления
 Future<void> showUpdateDialog(BuildContext context, UpdateInfo info) async {
+  final theme = GlassTheme.of(context);
   showDialog(
     context: context,
     builder: (ctx) => AlertDialog(
-      backgroundColor: const Color(0xFF1a2a1a),
+      backgroundColor: theme.surface,
+      surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: Row(
         children: [
-          Icon(Icons.system_update, color: Color(0xFFa8e63d)),
+          Icon(Icons.system_update, color: theme.primary),
           const SizedBox(width: 12),
-          Text('Доступно обновление', style: TextStyle(color: Colors.white)),
+          Text('Доступно обновление', style: TextStyle(color: theme.onSurface)),
         ],
       ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Новая версия: ${info.version}', style: TextStyle(color: Color(0xFFa8e63d), fontWeight: FontWeight.bold)),
+          Text('Новая версия: ${info.version}', style: TextStyle(color: theme.primary, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           if (info.releaseNotes.isNotEmpty) ...[
-            Text('Что нового:', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600)),
+            Text('Что нового:', style: TextStyle(color: theme.onSurfaceVariant, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
             Container(
-              constraints: BoxConstraints(maxHeight: 200),
+              constraints: const BoxConstraints(maxHeight: 200),
               child: SingleChildScrollView(
                 child: Text(
                   info.releaseNotes,
-                  style: TextStyle(color: Colors.white60, fontSize: 13),
+                  style: TextStyle(color: theme.onSurfaceVariant, fontSize: 13),
                 ),
               ),
             ),
@@ -226,19 +229,19 @@ Future<void> showUpdateDialog(BuildContext context, UpdateInfo info) async {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(ctx),
-          child: Text('Позже', style: TextStyle(color: Colors.white54)),
+          child: Text('Позже', style: TextStyle(color: theme.outline)),
         ),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Color(0xFFa8e63d),
-            foregroundColor: Colors.black,
+            backgroundColor: theme.primary,
+            foregroundColor: theme.onPrimary,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
           onPressed: () {
             Navigator.pop(ctx);
             UpdateChecker.downloadAndInstall(context, info);
           },
-          child: Text('Обновить'),
+          child: const Text('Обновить'),
         ),
       ],
     ),

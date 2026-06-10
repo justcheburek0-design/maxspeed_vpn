@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../core/theme/app_themes.dart';
 import '../../data/models/vpn_models.dart';
@@ -22,6 +21,7 @@ class PowerButton extends StatefulWidget {
 class _PowerButtonState extends State<PowerButton> with TickerProviderStateMixin {
   late AnimationController _pulseController;
   late AnimationController _rotationController;
+  late AnimationController _glowController;
 
   @override
   void initState() {
@@ -34,39 +34,45 @@ class _PowerButtonState extends State<PowerButton> with TickerProviderStateMixin
       vsync: this,
       duration: const Duration(milliseconds: 800),
     );
+    _glowController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    );
+    _updateAnimations();
+  }
 
+  void _updateAnimations() {
     if (widget.state == VpnConnectionState.connected) {
       _pulseController.repeat(reverse: true);
-    }
-    if (widget.state == VpnConnectionState.connecting) {
+      _glowController.repeat(reverse: true);
+      _rotationController.stop();
+    } else if (widget.state == VpnConnectionState.connecting ||
+        widget.state == VpnConnectionState.reconnecting) {
+      _pulseController.stop();
+      _pulseController.reset();
+      _glowController.stop();
       _rotationController.repeat();
+    } else {
+      _pulseController.stop();
+      _pulseController.reset();
+      _glowController.stop();
+      _glowController.reset();
+      _rotationController.stop();
+      _rotationController.reset();
     }
   }
 
   @override
   void didUpdateWidget(PowerButton oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.state != oldWidget.state) {
-      if (widget.state == VpnConnectionState.connected) {
-        _pulseController.repeat(reverse: true);
-        _rotationController.stop();
-      } else if (widget.state == VpnConnectionState.connecting) {
-        _pulseController.stop();
-        _pulseController.reset();
-        _rotationController.repeat();
-      } else {
-        _pulseController.stop();
-        _pulseController.reset();
-        _rotationController.stop();
-        _rotationController.reset();
-      }
-    }
+    if (widget.state != oldWidget.state) _updateAnimations();
   }
 
   @override
   void dispose() {
     _pulseController.dispose();
     _rotationController.dispose();
+    _glowController.dispose();
     super.dispose();
   }
 
@@ -95,38 +101,69 @@ class _PowerButtonState extends State<PowerButton> with TickerProviderStateMixin
     return GestureDetector(
       onTap: widget.onPressed,
       child: AnimatedBuilder(
-        animation: Listenable.merge([_pulseController, _rotationController]),
+        animation: Listenable.merge([_pulseController, _rotationController, _glowController]),
         builder: (context, child) {
+          final glowOpacity = isConnected ? 0.15 + (_glowController.value * 0.15) : 0.0;
           return Transform.scale(
-            scale: isConnected ? 1.0 + (_pulseController.value * 0.06) : 1.0,
-            child: Container(
-              width: widget.size,
-              height: widget.size,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isConnected
-                      ? color.withValues(alpha: 0.5)
-                      : color.withValues(alpha: 0.2),
-                  width: isConnected ? 2.5 : 1.5,
-                ),
-              ),
-              child: Center(
-                child: isConnecting
-                    ? RotationTransition(
-                        turns: _rotationController,
-                        child: Icon(
-                          Icons.refresh,
-                          size: widget.size * 0.28,
-                          color: color,
+            scale: isConnected ? 1.0 + (_pulseController.value * 0.04) : 1.0,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Glow effect
+                if (isConnected)
+                  Container(
+                    width: widget.size + 30,
+                    height: widget.size + 30,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: color.withValues(alpha: glowOpacity),
+                          blurRadius: 40,
+                          spreadRadius: 10,
                         ),
-                      )
-                    : Icon(
-                        Icons.power_settings_new,
-                        size: widget.size * 0.32,
-                        color: color,
-                      ),
-              ),
+                      ],
+                    ),
+                  ),
+                // Main button
+                Container(
+                  width: widget.size,
+                  height: widget.size,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        color.withValues(alpha: isConnected ? 0.15 : 0.05),
+                        color.withValues(alpha: isConnected ? 0.05 : 0.02),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 0.6, 1.0],
+                    ),
+                    border: Border.all(
+                      color: isConnected
+                          ? color.withValues(alpha: 0.6)
+                          : color.withValues(alpha: 0.2),
+                      width: isConnected ? 2.5 : 1.5,
+                    ),
+                  ),
+                  child: Center(
+                    child: isConnecting
+                        ? RotationTransition(
+                            turns: _rotationController,
+                            child: Icon(
+                              Icons.refresh_rounded,
+                              size: widget.size * 0.28,
+                              color: color,
+                            ),
+                          )
+                        : Icon(
+                            Icons.power_settings_new_rounded,
+                            size: widget.size * 0.32,
+                            color: color,
+                          ),
+                  ),
+                ),
+              ],
             ),
           );
         },

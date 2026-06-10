@@ -175,6 +175,8 @@ class VpnConnectionStats {
   final int bytesReceived;
   final int uploadSpeed;
   final int downloadSpeed;
+  final int uploadTotal;
+  final int downloadTotal;
   final Duration duration;
   final int? pingMs;
   final String? serverName;
@@ -184,6 +186,8 @@ class VpnConnectionStats {
     this.bytesReceived = 0,
     this.uploadSpeed = 0,
     this.downloadSpeed = 0,
+    this.uploadTotal = 0,
+    this.downloadTotal = 0,
     this.duration = Duration.zero,
     this.pingMs,
     this.serverName,
@@ -191,12 +195,15 @@ class VpnConnectionStats {
 
   VpnConnectionStats copyWith({
     int? bytesSent, int? bytesReceived, int? uploadSpeed,
-    int? downloadSpeed, Duration? duration, int? pingMs, String? serverName,
+    int? downloadSpeed, int? uploadTotal, int? downloadTotal,
+    Duration? duration, int? pingMs, String? serverName,
   }) => VpnConnectionStats(
     bytesSent: bytesSent ?? this.bytesSent,
     bytesReceived: bytesReceived ?? this.bytesReceived,
     uploadSpeed: uploadSpeed ?? this.uploadSpeed,
     downloadSpeed: downloadSpeed ?? this.downloadSpeed,
+    uploadTotal: uploadTotal ?? this.uploadTotal,
+    downloadTotal: downloadTotal ?? this.downloadTotal,
     duration: duration ?? this.duration,
     pingMs: pingMs ?? this.pingMs,
     serverName: serverName ?? this.serverName,

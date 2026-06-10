@@ -12,14 +12,18 @@ import 'services/vpn_service.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(statusBarColor: Colors.transparent, statusBarIconBrightness: Brightness.light),
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+    ),
   );
   runApp(const MaxSpeedVpnApp());
 }
 
 class MaxSpeedVpnApp extends StatefulWidget {
   const MaxSpeedVpnApp({super.key});
-  @override State<MaxSpeedVpnApp> createState() => _MaxSpeedVpnAppState();
+  @override
+  State<MaxSpeedVpnApp> createState() => _MaxSpeedVpnAppState();
 }
 
 class _MaxSpeedVpnAppState extends State<MaxSpeedVpnApp> {
@@ -64,7 +68,8 @@ class MainScreen extends StatefulWidget {
   final String themeId;
   final ValueChanged<String> onThemeChanged;
   const MainScreen({super.key, required this.themeId, required this.onThemeChanged});
-  @override State<MainScreen> createState() => _MainScreenState();
+  @override
+  State<MainScreen> createState() => _MainScreenState();
 }
 
 class _MainScreenState extends State<MainScreen> {
@@ -82,11 +87,18 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Future<void> _checkForUpdates() async {
-    await Future.delayed(const Duration(seconds: 2));
+    // Wait for app to fully render first
+    await Future.delayed(const Duration(seconds: 3));
     if (!mounted) return;
-    final update = await UpdateChecker.checkForUpdate();
-    if (update != null && mounted) {
-      showUpdateDialog(context, update);
+    try {
+      final update = await UpdateChecker.checkForUpdate();
+      if (update != null && mounted) {
+        if (context.mounted) {
+          showUpdateDialog(context, update);
+        }
+      }
+    } catch (_) {
+      // Silently skip update check on network error
     }
   }
 
@@ -117,39 +129,111 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = GlassTheme.of(context);
-    final screens = [
+    final screens = <Widget>[
       HomeScreen(vpnService: _vpnService),
       ServersScreen(vpnService: _vpnService),
       SettingsScreen(vpnService: _vpnService, onThemeChanged: widget.onThemeChanged),
     ];
 
     return Scaffold(
-      body: IndexedStack(index: _currentIndex, children: screens),
-      bottomNavigationBar: NavigationBar(
-        backgroundColor: theme.bgSecondary,
-        surfaceTintColor: Colors.transparent,
-        indicatorColor: theme.primary.withValues(alpha: 0.12),
-        indicatorShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (i) => setState(() => _currentIndex = i),
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        destinations: [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined, color: theme.onSurfaceVariant),
-            selectedIcon: Icon(Icons.home_rounded, color: theme.primary),
-            label: 'Главная',
+      backgroundColor: theme.bgPrimary,
+      body: SafeArea(
+        bottom: false,
+        child: IndexedStack(index: _currentIndex, children: screens),
+      ),
+      bottomNavigationBar: _buildBottomNav(theme),
+    );
+  }
+
+  Widget _buildBottomNav(AppTheme theme) {
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+
+    return Container(
+      padding: EdgeInsets.only(
+        left: 12,
+        right: 12,
+        bottom: bottomPad + 6,
+        top: 6,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.transparent,
+      ),
+      child: Container(
+        height: 68,
+        decoration: BoxDecoration(
+          color: theme.surface.withValues(alpha: 0.95),
+          borderRadius: BorderRadius.circular(34),
+          border: Border.all(color: theme.outlineVariant.withValues(alpha: 0.5), width: 0.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.4),
+              blurRadius: 30,
+              spreadRadius: 0,
+              offset: const Offset(0, 10),
+            ),
+            BoxShadow(
+              color: theme.primary.withValues(alpha: 0.05),
+              blurRadius: 20,
+              spreadRadius: 0,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(34),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _navItem(0, Icons.home_rounded, 'Главная', theme),
+              _navItem(1, Icons.dns_rounded, 'Серверы', theme),
+              _navItem(2, Icons.settings_rounded, 'Настройки', theme),
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.dns_outlined, color: theme.onSurfaceVariant),
-            selectedIcon: Icon(Icons.dns_rounded, color: theme.primary),
-            label: 'Серверы',
+        ),
+      ),
+    );
+  }
+
+  Widget _navItem(int index, IconData icon, String label, AppTheme theme) {
+    final isSelected = _currentIndex == index;
+    final color = isSelected ? theme.primary : theme.onSurfaceVariant;
+
+    return Expanded(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => setState(() => _currentIndex = index),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOutCubic,
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  padding: EdgeInsets.all(isSelected ? 6 : 4),
+                  decoration: BoxDecoration(
+                    color: isSelected ? theme.primary.withValues(alpha: 0.15) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(icon, size: 22, color: color),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                    color: color,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.settings_outlined, color: theme.onSurfaceVariant),
-            selectedIcon: Icon(Icons.settings_rounded, color: theme.primary),
-            label: 'Настройки',
-          ),
-        ],
+        ),
       ),
     );
   }

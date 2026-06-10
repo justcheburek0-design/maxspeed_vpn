@@ -17,7 +17,8 @@
     <application
         android:label="MaxSpeedVPN"
         android:icon="@mipmap/ic_launcher"
-        android:usesCleartextTraffic="true">
+        android:usesCleartextTraffic="true"
+        android:allowNativeHeapPointerTagging="false">
 
         <activity
             android:name=".MainActivity"
