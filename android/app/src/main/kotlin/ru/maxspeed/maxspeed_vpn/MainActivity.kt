@@ -27,7 +27,7 @@ class MainActivity : FlutterActivity() {
                         val apps = packages.map { info ->
                             mapOf(
                                 "package" to info.packageName,
-                                "name" to pm.getApplicationLabel(info.applicationInfo!).toString()
+                                "name" to pm.getApplicationLabel(info.applicationInfo!!).toString()
                             )
                         }
                         result.success(apps)
