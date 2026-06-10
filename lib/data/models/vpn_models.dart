@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 
 enum VpnProtocol { naive, vless, vmess, trojan, shadowsocks, wireguard, tuic, hysteria, xhttp }
 
@@ -129,7 +128,9 @@ class VpnServer {
   String get securityTag => security.displayName;
   String get pingText => ping != null ? '${ping}ms' : '—';
   String get rawLink => rawConfig['link'] as String? ?? '';
-  bool get isXhttp => protocol == VpnProtocol.vless && (rawConfig['type'] == 'xhttp' || path != null);
+  bool get isXhttp => protocol == VpnProtocol.vless && (mode == 'xhttp' || (rawLink.contains('type=xhttp')));
+  bool get isReality => security == VpnSecurity.reality;
+  bool get isTls => security == VpnSecurity.tls;
 
   @override
   bool operator ==(Object other) => identical(this, other) || other is VpnServer && other.id == id;

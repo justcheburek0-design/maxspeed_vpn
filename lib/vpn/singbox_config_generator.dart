@@ -170,8 +170,4 @@ class SingboxConfigGenerator {
   }
 }
 
-extension _VpnServerExt on VpnServer {
-  bool get isReality => security == VpnSecurity.reality;
-  bool get isTls => security == VpnSecurity.tls || (security == VpnSecurity.none && rawConfig.containsKey('tls'));
-  bool get isXhttp => rawConfig['link']?.toString().contains('type=xhttp') == true;
-}
+

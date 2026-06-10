@@ -1,7 +1,5 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart';
 import '../data/models/vpn_models.dart';
 import '../vpn/singbox_config_generator.dart';
 

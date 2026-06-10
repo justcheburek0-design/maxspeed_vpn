@@ -20,6 +20,21 @@ class MainActivity : FlutterActivity() {
                 "status" -> {
                     result.success("disconnected")
                 }
+                "getInstalledApps" -> {
+                    try {
+                        val pm = packageManager
+                        val packages = pm.getInstalledPackages(0)
+                        val apps = packages.map { info ->
+                            mapOf(
+                                "package" to info.packageName,
+                                "name" to pm.getApplicationLabel(info.applicationInfo!).toString()
+                            )
+                        }
+                        result.success(apps)
+                    } catch (e: Exception) {
+                        result.error("APPS_ERROR", e.message, null)
+                    }
+                }
                 else -> result.notImplemented()
             }
         }

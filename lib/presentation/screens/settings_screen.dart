@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/theme/app_themes.dart';
@@ -8,7 +8,8 @@ import '../widgets/glass_container.dart';
 
 class SettingsScreen extends StatefulWidget {
   final VpnService vpnService;
-  const SettingsScreen({super.key, required this.vpnService});
+  final ValueChanged<String>? onThemeChanged;
+  const SettingsScreen({super.key, required this.vpnService, this.onThemeChanged});
   @override State<SettingsScreen> createState() => SettingsScreenState();
 }
 
@@ -33,12 +34,16 @@ class SettingsScreenState extends State<SettingsScreen> {
   Future<void> _loadApps() async {
     setState(() => _loadingApps = true);
     try {
-      final result = await Process.run('pm', ['list', 'packages', '-3', '--user', '0']);
-      final lines = result.stdout.toString().split('\\n');
+      const channel = MethodChannel('maxspeed.vpn');
+      final List<dynamic>? result = await channel.invokeMethod('getInstalledApps');
       final apps = <InstalledApp>[];
-      for (final line in lines) {
-        final pkg = line.replaceFirst('package:', '').trim();
-        if (pkg.isNotEmpty) apps.add(InstalledApp(packageName: pkg, appName: pkg.split('.').last));
+      if (result != null) {
+        for (final item in result) {
+          final map = item as Map;
+          final pkg = map['package'] as String? ?? '';
+          final name = map['name'] as String? ?? pkg.split('.').last;
+          if (pkg.isNotEmpty) apps.add(InstalledApp(packageName: pkg, appName: name));
+        }
       }
       apps.sort((a, b) => a.appName.compareTo(b.appName));
       setState(() => _apps = apps);
@@ -379,7 +384,7 @@ class SettingsScreenState extends State<SettingsScreen> {
     setState(() => _selectedTheme = id);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('theme', id);
-    // TODO: Notify parent to rebuild with new theme
+    widget.onThemeChanged?.call(id);
   }
 
   void _showAddSubscriptionDialog() {

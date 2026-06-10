@@ -6,6 +6,7 @@ import 'core/deeplink/deep_link_handler.dart';
 import 'presentation/screens/home_screen.dart';
 import 'presentation/screens/servers_screen.dart';
 import 'presentation/screens/settings_screen.dart';
+import 'services/update_checker.dart';
 import 'services/vpn_service.dart';
 
 void main() {
@@ -87,6 +88,16 @@ class _MainScreenState extends State<MainScreen> {
     DeepLinkHandler.init();
     DeepLinkHandler.onLink.listen(_handleDeepLink);
     _checkInitialLink();
+    _checkForUpdates();
+  }
+
+  Future<void> _checkForUpdates() async {
+    await Future.delayed(const Duration(seconds: 2));
+    if (!mounted) return;
+    final update = await UpdateChecker.checkForUpdate();
+    if (update != null && mounted) {
+      showUpdateDialog(context, update);
+    }
   }
 
   Future<void> _checkInitialLink() async {
@@ -97,10 +108,13 @@ class _MainScreenState extends State<MainScreen> {
   void _handleDeepLink(String link) {
     if (link.startsWith('mxspd://')) {
       final url = link.substring(8);
-      // TODO: Import subscription from URL
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Импорт подписки: $url')),
-      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Импорт подписки: $url')),
+          );
+        }
+      });
     }
   }
 
@@ -116,7 +130,7 @@ class _MainScreenState extends State<MainScreen> {
     final screens = [
       HomeScreen(vpnService: _vpnService),
       ServersScreen(vpnService: _vpnService),
-      SettingsScreen(vpnService: _vpnService),
+      SettingsScreen(vpnService: _vpnService, onThemeChanged: widget.onThemeChanged),
     ];
 
     return Scaffold(

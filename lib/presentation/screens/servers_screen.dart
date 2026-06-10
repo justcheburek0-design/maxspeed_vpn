@@ -169,10 +169,6 @@ class _ServersScreenState extends State<ServersScreen> {
 
   void _connect(VpnServer server) {
     widget.vpnService.connect(server);
-    Navigator.pop(context);
   }
 }
 
-extension _ServerExt on VpnServer {
-  bool get isXhttp => rawConfig['link']?.toString().contains('type=xhttp') == true;
-}
