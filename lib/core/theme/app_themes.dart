@@ -339,7 +339,9 @@ class AppTheme {
   Color get primaryContainer => palette.primaryContainer;
   Color get onPrimaryContainer => palette.onPrimaryContainer;
   Color get secondary => palette.secondary;
+  Color get onSecondary => palette.onSecondary;
   Color get secondaryContainer => palette.secondaryContainer;
+  Color get onSecondaryContainer => palette.onSecondaryContainer;
   Color get surface => palette.surface;
   Color get onSurface => palette.onSurface;
   Color get surfaceVariant => palette.surfaceVariant;
@@ -347,6 +349,9 @@ class AppTheme {
   Color get outline => palette.outline;
   Color get outlineVariant => palette.outlineVariant;
   Color get error => palette.error;
+  Color get onError => palette.onError;
+  Color get errorContainer => palette.errorContainer;
+  Color get onErrorContainer => palette.onErrorContainer;
   Color get bgPrimary => palette.bgPrimary;
   Color get bgSecondary => palette.bgSecondary;
   Color get success => palette.success;
