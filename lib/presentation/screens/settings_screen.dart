@@ -46,8 +46,8 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
       final apps = <InstalledApp>[];
       for (final item in result) {
         final map = item as Map;
-        final pkg = map['package'] as String? ?? '';
-        final name = map['name'] as String? ?? pkg.split('.').last;
+        final pkg = map['packageName'] as String? ?? '';
+        final name = map['appName'] as String? ?? pkg.split('.').last;
         if (pkg.isNotEmpty) apps.add(InstalledApp(packageName: pkg, appName: name));
       }
       apps.sort((a, b) => a.appName.compareTo(b.appName));

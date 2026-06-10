@@ -1,13 +1,11 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_singbox_vpn/flutter_singbox.dart';
 import '../data/models/vpn_models.dart';
 import '../vpn/singbox_config_generator.dart';
 
 class VpnService {
   final FlutterSingbox _singbox = FlutterSingbox();
-  static const _channel = MethodChannel('maxspeed.vpn');
 
   final _stateController = StreamController<VpnConnectionState>.broadcast();
   final _statsController = StreamController<VpnConnectionStats>.broadcast();
@@ -110,18 +108,6 @@ class VpnService {
     });
   }
 
-  /// Request Android VPN permission. Returns true if granted.
-  Future<bool> _requestVpnPermission() async {
-    try {
-      final result = await _channel.invokeMethod<bool>('prepareVpn');
-      return result ?? false;
-    } catch (e) {
-      // MethodChannel not available — permission may already be granted
-      debugPrint('VPN permission check via MethodChannel failed: $e');
-      return true;
-    }
-  }
-
   Future<bool> connect(VpnServer server) async {
     try {
       _activeServer = server;
@@ -130,17 +116,7 @@ class VpnService {
       _accumulatedUpload = 0;
       _accumulatedDownload = 0;
 
-      // Step 1: Request VPN permission first
-      final hasPermission = await _requestVpnPermission();
-      if (!hasPermission) {
-        _state = VpnConnectionState.error;
-        _activeServer = null;
-        _stateController.add(_state);
-        _addLog(VpnLogLevel.error, 'VPN permission denied by user');
-        return false;
-      }
-
-      // Step 2: Save config and start VPN
+      // Save config and start VPN (plugin handles VpnService.prepare internally)
       final config = SingboxConfigGenerator.generate(server);
       await _singbox.saveConfig(config);
       final started = await _singbox.startVPN();
