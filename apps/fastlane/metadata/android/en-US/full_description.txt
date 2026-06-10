@@ -1,0 +1,47 @@
+MaxSpeed VPN — Fast, Secure & Private Internet Access
+
+Browse the web freely and securely with MaxSpeed VPN. Our app encrypts
+your internet connection, hides your IP address, and protects your
+privacy on any network — whether you're at home, at work, or on public
+Wi-Fi.
+
+KEY FEATURES:
+
+• Lightning-Fast Servers — Connect to 3,000+ servers in 90+ countries
+  for blazing-fast speeds and unlimited bandwidth.
+
+• Military-Grade Encryption — Your data is protected with AES-256
+  encryption, the same standard used by governments and security experts.
+
+• Strict No-Logs Policy — We never track, store, or share your online
+  activity. Your privacy is our top priority.
+
+• One-Tap Connect — Get protected in a single tap. No registration or
+  configuration required.
+
+• Multiple Protocols — Choose from OpenVPN, WireGuard, and IKEv2 to
+  find the best balance of speed and security for your network.
+
+• Kill Switch — Built-in kill switch blocks all internet traffic if the
+  VPN connection drops, preventing accidental data leaks.
+
+• Split Tunneling — Route only selected apps through the VPN while
+  others use your regular connection for optimal performance.
+
+• Ad & Tracker Blocking — Built-in ad blocker removes intrusive ads,
+  trackers, and malware domains for a cleaner browsing experience.
+
+• Public Wi-Fi Security — Automatically protect yourself when joining
+  untrusted networks at cafes, airports, and hotels.
+
+• 24/7 Customer Support — Our support team is always ready to help you
+  via live chat or email.
+
+SUBSCRIPTION DETAILS:
+
+MaxSpeed VPN offers free and premium plans. The premium subscription
+unlocks all server locations, the fastest speeds, and advanced features
+like split tunneling and ad blocking. Subscriptions auto-renew unless
+canceled at least 24 hours before the current period ends.
+
+Download MaxSpeed VPN today and take control of your online privacy.

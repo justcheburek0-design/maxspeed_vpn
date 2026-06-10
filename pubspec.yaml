@@ -1,0 +1,27 @@
+name: maxspeed_vpn
+description: "MaxSpeedVPN — fast, modern VPN client built with Flutter + sing-box"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.2
+  flutter: ">=3.3.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_singbox_vpn: ^1.1.2
+  cupertino_icons: ^1.0.8
+  shared_preferences: ^2.2.2
+  url_launcher: ^6.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/icons/
