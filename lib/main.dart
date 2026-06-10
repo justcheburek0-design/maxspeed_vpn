@@ -23,7 +23,7 @@ class MaxSpeedVpnApp extends StatefulWidget {
 }
 
 class _MaxSpeedVpnAppState extends State<MaxSpeedVpnApp> {
-  String _themeId = 'forest';
+  String _themeId = 'incy';
 
   @override
   void initState() {
@@ -33,7 +33,7 @@ class _MaxSpeedVpnAppState extends State<MaxSpeedVpnApp> {
 
   Future<void> _loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() => _themeId = prefs.getString('theme') ?? 'forest');
+    setState(() => _themeId = prefs.getString('theme') ?? 'incy');
   }
 
   void _onThemeChanged(String id) async {
@@ -44,23 +44,13 @@ class _MaxSpeedVpnAppState extends State<MaxSpeedVpnApp> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = ThemeRegistry.get(_themeId);
+    final appTheme = ThemeRegistry.get(_themeId);
     return GlassTheme(
-      theme: theme,
+      theme: appTheme,
       child: MaterialApp(
         title: 'MaxSpeedVPN',
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          brightness: Brightness.dark,
-          scaffoldBackgroundColor: theme.bgPrimary,
-          colorScheme: ColorScheme.dark(
-            primary: theme.primary,
-            secondary: theme.accent,
-            surface: theme.bgSurface,
-            error: theme.error,
-          ),
-          useMaterial3: true,
-        ),
+        theme: appTheme.themeData,
         home: MainScreen(
           themeId: _themeId,
           onThemeChanged: _onThemeChanged,
@@ -135,46 +125,31 @@ class _MainScreenState extends State<MainScreen> {
 
     return Scaffold(
       body: IndexedStack(index: _currentIndex, children: screens),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: theme.bgSecondary,
-          border: Border(top: BorderSide(color: theme.border, width: 0.5)),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _nav(0, Icons.home_rounded, 'Главная', theme),
-                _nav(1, Icons.dns_rounded, 'Серверы', theme),
-                _nav(2, Icons.settings_rounded, 'Настройки', theme),
-              ],
-            ),
+      bottomNavigationBar: NavigationBar(
+        backgroundColor: theme.bgSecondary,
+        surfaceTintColor: Colors.transparent,
+        indicatorColor: theme.primary.withValues(alpha: 0.12),
+        indicatorShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        selectedIndex: _currentIndex,
+        onDestinationSelected: (i) => setState(() => _currentIndex = i),
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        destinations: [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined, color: theme.onSurfaceVariant),
+            selectedIcon: Icon(Icons.home_rounded, color: theme.primary),
+            label: 'Главная',
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _nav(int i, IconData icon, String label, AppTheme theme) {
-    final sel = _currentIndex == i;
-    return GestureDetector(
-      onTap: () => setState(() => _currentIndex = i),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: sel ? theme.primary.withValues(alpha: 0.1) : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: sel ? theme.primary : theme.textMuted, size: 24),
-            const SizedBox(height: 4),
-            Text(label, style: TextStyle(fontSize: 11, fontWeight: sel ? FontWeight.w600 : FontWeight.w400, color: sel ? theme.primary : theme.textMuted)),
-          ],
-        ),
+          NavigationDestination(
+            icon: Icon(Icons.dns_outlined, color: theme.onSurfaceVariant),
+            selectedIcon: Icon(Icons.dns_rounded, color: theme.primary),
+            label: 'Серверы',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.settings_outlined, color: theme.onSurfaceVariant),
+            selectedIcon: Icon(Icons.settings_rounded, color: theme.primary),
+            label: 'Настройки',
+          ),
+        ],
       ),
     );
   }

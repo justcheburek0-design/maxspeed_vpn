@@ -2,75 +2,43 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_themes.dart';
 
+/// Lightweight glass-style container — Material3 tonal surface
+/// Replaces heavy BackdropFilter with simple surface tint (INCY style)
 class GlassContainer extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
   final EdgeInsetsGeometry margin;
   final double borderRadius;
-  final double blur;
-  final double opacity;
+  final Color? color;
   final Color? borderColor;
   final double borderWidth;
-  final bool useGradient;
 
   const GlassContainer({
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(16),
     this.margin = EdgeInsets.zero,
-    this.borderRadius = 16,
-    this.blur = 20,
-    this.opacity = 0.08,
+    this.borderRadius = 12,
+    this.color,
     this.borderColor,
     this.borderWidth = 1,
-    this.useGradient = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = GlassTheme.of(context);
-    final effectiveBorder = borderColor ?? theme.border;
+    final bg = color ?? theme.surface;
+    final border = borderColor ?? theme.outlineVariant;
 
     return Container(
       margin: margin,
+      padding: padding,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(borderRadius),
-        boxShadow: [
-          BoxShadow(
-            color: theme.shadow,
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        color: bg,
+        border: Border.all(color: border, width: borderWidth),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(borderRadius),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-          child: Container(
-            padding: padding,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(borderRadius),
-              color: theme.bgCard.withValues(alpha: opacity + 0.85),
-              border: Border.all(
-                color: effectiveBorder,
-                width: borderWidth,
-              ),
-              gradient: useGradient
-                  ? LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        theme.primary.withValues(alpha: 0.06),
-                        theme.accent.withValues(alpha: 0.02),
-                      ],
-                    )
-                  : null,
-            ),
-            child: child,
-          ),
-        ),
-      ),
+      child: child,
     );
   }
 }

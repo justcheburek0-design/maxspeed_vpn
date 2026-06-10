@@ -220,3 +220,13 @@ class VpnLogEntry {
     this.details,
   });
 }
+
+class InstalledApp {
+  final String packageName;
+  final String appName;
+
+  const InstalledApp({
+    required this.packageName,
+    required this.appName,
+  });
+}

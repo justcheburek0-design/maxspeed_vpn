@@ -66,186 +66,200 @@ class _ServersScreenState extends State<ServersScreen> {
     final theme = GlassTheme.of(context);
     return Scaffold(
       backgroundColor: theme.bgPrimary,
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: RadialGradient(
-            center: const Alignment(0, -0.8),
-            radius: 1.0,
-            colors: [
-              theme.primary.withValues(alpha: 0.05),
-              theme.bgPrimary,
-            ],
+      appBar: AppBar(
+        backgroundColor: theme.bgPrimary,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        title: Text(
+          'Серверы',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: theme.onSurface,
           ),
         ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Header
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                child: Row(
-                  children: [
-                    Text('Серверы', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: theme.textPrimary)),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: theme.primary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text('${_filtered.length}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: theme.primary)),
-                    ),
-                  ],
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: theme.primaryContainer,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              ),
-              // Search
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(14),
-                    color: theme.bgCard,
-                    border: Border.all(color: theme.border),
-                  ),
-                  child: TextField(
-                    style: TextStyle(color: theme.textPrimary),
-                    decoration: InputDecoration(
-                      hintText: 'Поиск серверов...',
-                      hintStyle: TextStyle(color: theme.textMuted, fontSize: 14),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      prefixIcon: Icon(Icons.search, color: theme.textMuted, size: 20),
-                    ),
-                    onChanged: (v) => setState(() => _searchQuery = v),
+                child: Text(
+                  '${_filtered.length}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: theme.onPrimaryContainer,
                   ),
                 ),
               ),
-              // Server list
-              Expanded(
-                child: _loading
-                    ? Center(child: CircularProgressIndicator(color: theme.primary))
-                    : ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-                        itemCount: _filtered.length,
-                        itemBuilder: (c, i) => _serverCard(c, theme, _filtered[i]),
-                      ),
-              ),
-            ],
+            ),
           ),
-        ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // Search field — Material3 filled style
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: SearchBar(
+              hintText: 'Поиск серверов...',
+              leading: Icon(Icons.search, color: theme.onSurfaceVariant),
+              backgroundColor: WidgetStatePropertyAll(theme.surface),
+              surfaceTintColor: WidgetStatePropertyAll(Colors.transparent),
+              elevation: WidgetStatePropertyAll(0),
+              shape: WidgetStatePropertyAll(
+                RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: BorderSide(color: theme.outlineVariant),
+                ),
+              ),
+              hintStyle: WidgetStatePropertyAll(
+                TextStyle(color: theme.onSurfaceVariant),
+              ),
+              onChanged: (v) => setState(() => _searchQuery = v),
+            ),
+          ),
+          // Server list
+          Expanded(
+            child: _loading
+                ? Center(child: CircularProgressIndicator(color: theme.primary))
+                : ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                    itemCount: _filtered.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 6),
+                    itemBuilder: (c, i) => _serverTile(c, theme, _filtered[i]),
+                  ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _serverCard(BuildContext c, AppTheme theme, VpnServer server) {
+  Widget _serverTile(BuildContext c, AppTheme theme, VpnServer server) {
     final isActive = widget.vpnService.activeServer?.id == server.id;
     final pingColor = _pingColor(theme, server.ping ?? 999);
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _connect(server),
-          borderRadius: BorderRadius.circular(16),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              color: isActive ? theme.primary.withValues(alpha: 0.08) : theme.bgCard,
-              border: Border.all(
-                color: isActive ? theme.primary.withValues(alpha: 0.4) : theme.border,
-                width: isActive ? 1.5 : 1,
-              ),
-              boxShadow: isActive
-                  ? [BoxShadow(color: theme.primary.withValues(alpha: 0.1), blurRadius: 12, offset: const Offset(0, 2))]
-                  : null,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _connect(server),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            color: isActive ? theme.primaryContainer.withValues(alpha: 0.3) : theme.surface,
+            border: Border.all(
+              color: isActive ? theme.primary.withValues(alpha: 0.4) : theme.outlineVariant,
+              width: isActive ? 1.5 : 1,
             ),
-            child: Row(
-              children: [
-                // Flag
-                Container(
-                  width: 44, height: 44,
-                  decoration: BoxDecoration(
-                    color: theme.bgSurface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: theme.border),
-                  ),
-                  child: Center(
-                    child: Text(server.flag ?? '🌐', style: const TextStyle(fontSize: 22)),
-                  ),
+          ),
+          child: Row(
+            children: [
+              // Flag
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: theme.surfaceVariant,
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                const SizedBox(width: 12),
-                // Info
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(server.name, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: theme.textPrimary)),
-                      const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 4,
-                        children: [
-                          _badge(theme, server.protocol.displayName, theme.protocolColor(server.security)),
-                          if (server.security != VpnSecurity.none)
-                            _badge(theme, server.security.displayName, theme.protocolReality),
-                          if (server.isXhttp)
-                            _badge(theme, 'XHTTP', theme.protocolXhttp),
-                        ],
-                      ),
-                    ],
-                  ),
+                child: Center(
+                  child: Text(server.flag ?? '🌐', style: const TextStyle(fontSize: 20)),
                 ),
-                // Right side: ping + status
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+              ),
+              const SizedBox(width: 12),
+              // Name + protocol badges
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (server.ping != null) ...[
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 6, height: 6,
-                            decoration: BoxDecoration(shape: BoxShape.circle, color: pingColor),
-                          ),
-                          const SizedBox(width: 4),
-                          Text('${server.ping}ms', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: pingColor)),
-                        ],
+                    Text(
+                      server.name,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: theme.onSurface,
                       ),
-                      const SizedBox(height: 8),
-                    ],
-                    if (isActive)
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: theme.success.withValues(alpha: 0.15),
-                        ),
-                        child: Icon(Icons.check, size: 16, color: theme.success),
-                      )
-                    else
-                      Icon(Icons.chevron_right, size: 20, color: theme.textMuted),
+                    ),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 4,
+                      runSpacing: 2,
+                      children: [
+                        _protocolBadge(theme, server.protocol.displayName, theme.primary),
+                        if (server.security != VpnSecurity.none)
+                          _protocolBadge(theme, server.security.displayName, theme.protocolColor(server.security)),
+                        if (server.isXhttp)
+                          _protocolBadge(theme, 'XHTTP', theme.protocolXhttp),
+                      ],
+                    ),
                   ],
                 ),
-              ],
-            ),
+              ),
+              // Right: ping + status
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (server.ping != null) ...[
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: pingColor,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${server.ping}ms',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: pingColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                  ],
+                  if (isActive)
+                    Icon(Icons.check_circle, size: 18, color: theme.success)
+                  else
+                    Icon(Icons.chevron_right, size: 20, color: theme.outline),
+                ],
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _badge(AppTheme theme, String text, Color color) {
+  Widget _protocolBadge(AppTheme theme, String text, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withValues(alpha: 0.25)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
-      child: Text(text, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: color)),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
+      ),
     );
   }
 

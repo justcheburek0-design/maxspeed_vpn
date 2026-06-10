@@ -13,10 +13,11 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class SettingsScreenState extends State<SettingsScreen> with TickerProviderStateMixin {
-  String _selectedTheme = 'forest';
+  String _selectedTheme = 'incy';
   List<InstalledApp> _apps = [];
   Set<String> _excludedApps = {};
   bool _loadingApps = false;
+  String _appSearchQuery = '';
   late TabController _tabController;
 
   @override
@@ -35,7 +36,7 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
 
   Future<void> _loadPrefs() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() => _selectedTheme = prefs.getString('theme') ?? 'forest');
+    setState(() => _selectedTheme = prefs.getString('theme') ?? 'incy');
   }
 
   Future<void> _loadApps() async {
@@ -60,220 +61,213 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
     setState(() => _loadingApps = false);
   }
 
+  List<InstalledApp> get _filteredApps {
+    if (_appSearchQuery.isEmpty) return _apps;
+    return _apps.where((a) =>
+      a.appName.toLowerCase().contains(_appSearchQuery.toLowerCase()) ||
+      a.packageName.toLowerCase().contains(_appSearchQuery.toLowerCase())
+    ).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = GlassTheme.of(context);
     return Scaffold(
       backgroundColor: theme.bgPrimary,
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: RadialGradient(
-            center: const Alignment(0, -0.8),
-            radius: 1.0,
-            colors: [
-              theme.primary.withValues(alpha: 0.04),
-              theme.bgPrimary,
-            ],
+      appBar: AppBar(
+        backgroundColor: theme.bgPrimary,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        title: Text(
+          'Настройки',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: theme.onSurface,
           ),
         ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Header
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                child: Row(
-                  children: [
-                    Text('Настройки', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: theme.textPrimary)),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              // Tabs
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(14),
-                    color: theme.bgCard,
-                    border: Border.all(color: theme.border),
-                  ),
-                  child: TabBar(
-                    controller: _tabController,
-                    labelColor: theme.primary,
-                    unselectedLabelColor: theme.textMuted,
-                    indicator: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      color: theme.primary.withValues(alpha: 0.12),
-                    ),
-                    indicatorSize: TabBarIndicatorSize.tab,
-                    dividerColor: Colors.transparent,
-                    labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                    unselectedLabelStyle: const TextStyle(fontSize: 12),
-                    tabs: const [
-                      Tab(text: 'Общие'),
-                      Tab(text: 'Прокси'),
-                      Tab(text: 'Логи'),
-                      Tab(text: 'Тема'),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              // Tab content
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildGeneralTab(theme),
-                    _buildProxyTab(theme),
-                    _buildLogsTab(theme),
-                    _buildThemeTab(theme),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
+        bottom: TabBar(
+          controller: _tabController,
+          labelColor: theme.primary,
+          unselectedLabelColor: theme.onSurfaceVariant,
+      indicatorColor: theme.primary,
+      dividerColor: theme.outlineVariant,
+      labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+      unselectedLabelStyle: const TextStyle(fontSize: 13),
+      tabAlignment: TabAlignment.fill,
+      tabs: const [
+        Tab(text: 'Общие'),
+        Tab(text: 'Прокси'),
+        Tab(text: 'Логи'),
+        Tab(text: 'Тема'),
+      ],
+    ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildGeneralTab(theme),
+          _buildProxyTab(theme),
+          _buildLogsTab(theme),
+          _buildThemeTab(theme),
+        ],
       ),
     );
   }
 
+  // ─── General Tab ───
+
   Widget _buildGeneralTab(AppTheme theme) {
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       children: [
-        _sectionTitle(theme, 'Подписки'),
-        _card(theme, [
-          Row(
-            children: [
-              Container(
-                width: 36, height: 36,
-                decoration: BoxDecoration(
-                  color: theme.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(Icons.link, color: theme.primary, size: 18),
+        _sectionTitle(theme, 'ПОДПИСКИ'),
+        Card(
+          elevation: 0,
+          color: theme.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: theme.outlineVariant),
+          ),
+          child: Column(children: [
+            ListTile(
+              leading: Icon(Icons.link, color: theme.primary),
+              title: const Text('URL подписки'),
+              subtitle: Text(
+                'Вставьте ссылку или используйте mxspd://',
+                style: TextStyle(fontSize: 12, color: theme.onSurfaceVariant),
               ),
-              const SizedBox(width: 12),
-              Expanded(child: Text('URL подписки', style: TextStyle(color: theme.textPrimary, fontWeight: FontWeight.w500))),
-              IconButton(
+              trailing: IconButton(
                 icon: Icon(Icons.add_circle_outline, color: theme.primary),
                 onPressed: _showAddSubscriptionDialog,
               ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Padding(
-            padding: const EdgeInsets.only(left: 48),
-            child: Text('Вставьте ссылку или используйте mxspd://', style: TextStyle(fontSize: 12, color: theme.textMuted)),
-          ),
-        ]),
+            ),
+          ]),
+        ),
         const SizedBox(height: 20),
-        _sectionTitle(theme, 'Подключение'),
-        _card(theme, [
-          _switchRow(theme, 'Автоподключение', false, (v) {}),
-          Divider(color: theme.border, height: 1),
-          _switchRow(theme, 'Reconnect при обрыве', true, (v) {}),
-          Divider(color: theme.border, height: 1),
-          _switchRow(theme, 'Уведомления', true, (v) {}),
-        ]),
+        _sectionTitle(theme, 'ПОДКЛЮЧЕНИЕ'),
+        Card(
+          elevation: 0,
+          color: theme.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: theme.outlineVariant),
+          ),
+          child: Column(children: [
+            _switchTile(theme, 'Автоподключение', false, (v) {}),
+            Divider(color: theme.outlineVariant, height: 1, indent: 16, endIndent: 16),
+            _switchTile(theme, 'Reconnect при обрыве', true, (v) {}),
+            Divider(color: theme.outlineVariant, height: 1, indent: 16, endIndent: 16),
+            _switchTile(theme, 'Уведомления', true, (v) {}),
+          ]),
+        ),
         const SizedBox(height: 20),
-        _sectionTitle(theme, 'О приложении'),
-        _card(theme, [
-          _infoRow(theme, 'Версия', '1.0.0'),
-          Divider(color: theme.border, height: 1),
-          _infoRow(theme, 'Протокол', 'VLESS / REALITY'),
-          Divider(color: theme.border, height: 1),
-          _infoRow(theme, 'Engine', 'sing-box v1.13'),
-        ]),
+        _sectionTitle(theme, 'О ПРИЛОЖЕНИИ'),
+        Card(
+          elevation: 0,
+          color: theme.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: theme.outlineVariant),
+          ),
+          child: Column(children: [
+            _infoTile(theme, 'Версия', '1.0.0'),
+            Divider(color: theme.outlineVariant, height: 1, indent: 16, endIndent: 16),
+            _infoTile(theme, 'Протокол', 'VLESS / REALITY'),
+            Divider(color: theme.outlineVariant, height: 1, indent: 16, endIndent: 16),
+            _infoTile(theme, 'Engine', 'sing-box v1.13'),
+          ]),
+        ),
       ],
     );
   }
+
+  // ─── Proxy Tab ───
 
   Widget _buildProxyTab(AppTheme theme) {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.all(20),
-          child: _card(theme, [
-            Row(
-              children: [
-                Container(
-                  width: 36, height: 36,
-                  decoration: BoxDecoration(
-                    color: theme.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(Icons.apps_outlined, color: theme.primary, size: 18),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Прокси по приложениям', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: theme.textPrimary)),
-                      Text('Исключить из прокси', style: TextStyle(fontSize: 11, color: theme.textMuted)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ]),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Container(
-            decoration: BoxDecoration(
+          padding: const EdgeInsets.all(16),
+          child: Card(
+            elevation: 0,
+            color: theme.surface,
+            shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
-              color: theme.bgCard,
-              border: Border.all(color: theme.border),
+              side: BorderSide(color: theme.outlineVariant),
             ),
-            child: TextField(
-              style: TextStyle(color: theme.textPrimary),
-              decoration: InputDecoration(
-                hintText: 'Поиск приложений...',
-                hintStyle: TextStyle(color: theme.textMuted, fontSize: 13),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                prefixIcon: Icon(Icons.search, color: theme.textMuted, size: 18),
+            child: ListTile(
+              leading: Icon(Icons.apps_outlined, color: theme.primary),
+              title: const Text('Прокси по приложениям'),
+              subtitle: Text(
+                'Исключить из прокси',
+                style: TextStyle(fontSize: 12, color: theme.onSurfaceVariant),
               ),
-              onChanged: (v) {},
             ),
           ),
         ),
-        const SizedBox(height: 10),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: SearchBar(
+            hintText: 'Поиск приложений...',
+            leading: Icon(Icons.search, color: theme.onSurfaceVariant),
+            backgroundColor: WidgetStatePropertyAll(theme.surface),
+            surfaceTintColor: WidgetStatePropertyAll(Colors.transparent),
+            elevation: WidgetStatePropertyAll(0),
+            shape: WidgetStatePropertyAll(
+              RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: theme.outlineVariant),
+              ),
+            ),
+            hintStyle: WidgetStatePropertyAll(
+              TextStyle(color: theme.onSurfaceVariant),
+            ),
+            onChanged: (v) => setState(() => _appSearchQuery = v),
+          ),
+        ),
+        const SizedBox(height: 8),
         Expanded(
           child: _loadingApps
               ? Center(child: CircularProgressIndicator(color: theme.primary))
-              : ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  itemCount: _apps.length,
+              : ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _filteredApps.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 4),
                   itemBuilder: (c, i) {
-                    final app = _apps[i];
+                    final app = _filteredApps[i];
                     final excluded = _excludedApps.contains(app.packageName);
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          color: theme.bgCard,
-                          border: Border.all(color: theme.border),
+                    return Card(
+                      elevation: 0,
+                      color: theme.surface,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: theme.outlineVariant),
+                      ),
+                      child: CheckboxListTile(
+                        value: excluded,
+                        onChanged: (v) {
+                          setState(() {
+                            if (v == true) {
+                              _excludedApps.add(app.packageName);
+                            } else {
+                              _excludedApps.remove(app.packageName);
+                            }
+                          });
+                        },
+                        title: Text(
+                          app.appName,
+                          style: TextStyle(color: theme.onSurface, fontSize: 14),
                         ),
-                        child: CheckboxListTile(
-                          value: excluded,
-                          onChanged: (v) {
-                            setState(() {
-                              if (v == true) _excludedApps.add(app.packageName);
-                              else _excludedApps.remove(app.packageName);
-                            });
-                          },
-                          title: Text(app.appName, style: TextStyle(color: theme.textPrimary, fontSize: 14)),
-                          subtitle: Text(app.packageName, style: TextStyle(fontSize: 11, color: theme.textMuted)),
-                          activeColor: theme.primary,
-                          checkboxShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                        subtitle: Text(
+                          app.packageName,
+                          style: TextStyle(fontSize: 11, color: theme.onSurfaceVariant),
                         ),
+                        activeColor: theme.primary,
+                        checkboxShape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                       ),
                     );
                   },
@@ -283,27 +277,46 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
     );
   }
 
+  // ─── Logs Tab ───
+
   Widget _buildLogsTab(AppTheme theme) {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              Text('Логи', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: theme.textPrimary)),
+              Text(
+                'Логи',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: theme.onSurface,
+                ),
+              ),
               const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: theme.primary.withValues(alpha: 0.12),
+                  color: theme.primaryContainer,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Text('${widget.vpnService.logs.length}', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: theme.primary)),
+                child: Text(
+                  '${widget.vpnService.logs.length}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: theme.onPrimaryContainer,
+                  ),
+                ),
               ),
               const Spacer(),
               IconButton(
                 icon: Icon(Icons.delete_outline, color: theme.error, size: 20),
-                onPressed: () { widget.vpnService.clearLogs(); setState(() {}); },
+                onPressed: () {
+                  widget.vpnService.clearLogs();
+                  setState(() {});
+                },
                 tooltip: 'Очистить',
               ),
               IconButton(
@@ -324,43 +337,36 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.description_outlined, size: 48, color: theme.textMuted),
+                      Icon(Icons.description_outlined, size: 48, color: theme.outline),
                       const SizedBox(height: 12),
-                      Text('Логи пусты', style: TextStyle(color: theme.textMuted)),
+                      Text('Логи пусты', style: TextStyle(color: theme.onSurfaceVariant)),
                     ],
                   ),
                 );
               }
-              return ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+              return ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: logs.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 4),
                 itemBuilder: (c, i) {
                   final log = logs[i];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        color: theme.bgCard,
-                        border: Border.all(color: theme.border),
+                  return Card(
+                    elevation: 0,
+                    color: theme.surface,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(color: theme.outlineVariant),
+                    ),
+                    child: ListTile(
+                      dense: true,
+                      leading: _logIcon(theme, log.level),
+                      title: Text(
+                        log.message,
+                        style: TextStyle(fontSize: 13, color: theme.onSurface),
                       ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _logIcon(theme, log.level),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(log.message, style: TextStyle(fontSize: 13, color: theme.textPrimary)),
-                                const SizedBox(height: 2),
-                                Text(_formatTime(log.timestamp), style: TextStyle(fontSize: 10, color: theme.textMuted)),
-                              ],
-                            ),
-                          ),
-                        ],
+                      subtitle: Text(
+                        _formatTime(log.timestamp),
+                        style: TextStyle(fontSize: 10, color: theme.onSurfaceVariant),
                       ),
                     ),
                   );
@@ -373,14 +379,16 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
     );
   }
 
+  // ─── Theme Tab ───
+
   Widget _buildThemeTab(AppTheme theme) {
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       children: [
-        _sectionTitle(theme, 'Тёмные темы'),
+        _sectionTitle(theme, 'ТЁМНЫЕ ТЕМЫ'),
         ...ThemeRegistry.dark.map((t) => _themeOption(t, theme)),
         const SizedBox(height: 16),
-        _sectionTitle(theme, 'Светлые темы'),
+        _sectionTitle(theme, 'СВЕТЛЫЕ ТЕМЫ'),
         ...ThemeRegistry.light.map((t) => _themeOption(t, theme)),
       ],
     );
@@ -389,96 +397,86 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
   Widget _themeOption(AppTheme t, AppTheme currentTheme) {
     final isSelected = _selectedTheme == t.id;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Card(
+        elevation: 0,
+        color: isSelected ? t.primary.withValues(alpha: 0.08) : currentTheme.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: isSelected ? t.primary.withValues(alpha: 0.5) : currentTheme.outlineVariant,
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: ListTile(
           onTap: () => _selectTheme(t.id),
-          borderRadius: BorderRadius.circular(14),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.all(12),
+          leading: Container(
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              color: isSelected ? t.primary.withValues(alpha: 0.1) : currentTheme.bgCard,
-              border: Border.all(
-                color: isSelected ? t.primary.withValues(alpha: 0.5) : currentTheme.border,
-                width: isSelected ? 1.5 : 1,
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 36, height: 36,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(colors: [t.primary, t.accent]),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(t.name, style: TextStyle(color: currentTheme.textPrimary, fontWeight: FontWeight.w500)),
-                ),
-                if (isSelected)
-                  Icon(Icons.check_circle, color: t.primary, size: 20)
-                else
-                  Icon(Icons.circle_outlined, color: currentTheme.textMuted, size: 20),
-              ],
+              gradient: LinearGradient(colors: [t.primary, t.secondary]),
+              borderRadius: BorderRadius.circular(10),
             ),
           ),
+          title: Text(
+            t.name,
+            style: TextStyle(color: currentTheme.onSurface, fontWeight: FontWeight.w500),
+          ),
+          trailing: isSelected
+              ? Icon(Icons.check_circle, color: t.primary, size: 20)
+              : Icon(Icons.circle_outlined, color: currentTheme.outline, size: 20),
         ),
       ),
     );
   }
 
-  Widget _card(AppTheme theme, List<Widget> children) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        color: theme.bgCard,
-        border: Border.all(color: theme.border),
-      ),
-      child: Column(children: children),
-    );
-  }
+  // ─── Helpers ───
 
   Widget _sectionTitle(AppTheme theme, String title) {
     return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 10),
-      child: Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: theme.textSecondary, letterSpacing: 0.3)),
+      padding: const EdgeInsets.only(left: 4, bottom: 8),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: theme.onSurfaceVariant,
+          letterSpacing: 0.8,
+        ),
+      ),
     );
   }
 
-  Widget _switchRow(AppTheme theme, String label, bool value, ValueChanged<bool> onChanged) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: TextStyle(color: theme.textPrimary, fontSize: 14)),
-        Switch(value: value, onChanged: onChanged, activeColor: theme.primary),
-      ],
+  Widget _switchTile(AppTheme theme, String label, bool value, ValueChanged<bool> onChanged) {
+    return SwitchListTile(
+      value: value,
+      onChanged: onChanged,
+      title: Text(label, style: TextStyle(color: theme.onSurface, fontSize: 14)),
+      activeColor: theme.primary,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
     );
   }
 
-  Widget _infoRow(AppTheme theme, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: TextStyle(color: theme.textSecondary, fontSize: 14)),
-          Text(value, style: TextStyle(color: theme.textPrimary, fontWeight: FontWeight.w500, fontSize: 14)),
-        ],
+  Widget _infoTile(AppTheme theme, String label, String value) {
+    return ListTile(
+      title: Text(label, style: TextStyle(color: theme.onSurfaceVariant, fontSize: 14)),
+      trailing: Text(
+        value,
+        style: TextStyle(color: theme.onSurface, fontWeight: FontWeight.w500, fontSize: 14),
       ),
     );
   }
 
   Widget _logIcon(AppTheme theme, VpnLogLevel level) {
     switch (level) {
-      case VpnLogLevel.error: return Icon(Icons.error_outline, color: theme.error, size: 16);
-      case VpnLogLevel.warning: return Icon(Icons.warning_amber_outlined, color: theme.warning, size: 16);
-      case VpnLogLevel.debug: return Icon(Icons.bug_report_outlined, color: theme.textMuted, size: 16);
-      default: return Icon(Icons.info_outline, color: theme.primary, size: 16);
+      case VpnLogLevel.error:
+        return Icon(Icons.error_outline, color: theme.error, size: 16);
+      case VpnLogLevel.warning:
+        return Icon(Icons.warning_amber_outlined, color: theme.warning, size: 16);
+      case VpnLogLevel.debug:
+        return Icon(Icons.bug_report_outlined, color: theme.outline, size: 16);
+      default:
+        return Icon(Icons.info_outline, color: theme.primary, size: 16);
     }
   }
 
@@ -498,29 +496,38 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
     final theme = GlassTheme.of(context);
     showDialog(
       context: context,
-      builder: (c) => AlertDialog(
-        backgroundColor: theme.bgSurface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Добавить подписку', style: TextStyle(color: theme.textPrimary)),
+      builder: (ctx) => AlertDialog(
+        backgroundColor: theme.surface,
+        surfaceTintColor: Colors.transparent,
+        title: Text('Добавить подписку', style: TextStyle(color: theme.onSurface)),
         content: TextField(
           controller: controller,
-          style: TextStyle(color: theme.textPrimary),
+          style: TextStyle(color: theme.onSurface),
           decoration: InputDecoration(
-            hintText: 'https://... или mxspd://...',
-            hintStyle: TextStyle(color: theme.textMuted),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            hintText: 'Вставьте ссылку подписки...',
+            hintStyle: TextStyle(color: theme.onSurfaceVariant),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: theme.outlineVariant),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: theme.primary),
+            ),
           ),
           maxLines: 3,
+          minLines: 1,
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: Text('Отмена', style: TextStyle(color: theme.textMuted))),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(c);
-            },
-            style: ElevatedButton.styleFrom(
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Отмена', style: TextStyle(color: theme.onSurfaceVariant)),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            style: FilledButton.styleFrom(
               backgroundColor: theme.primary,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              foregroundColor: theme.onPrimary,
             ),
             child: const Text('Добавить'),
           ),
@@ -528,10 +535,4 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
       ),
     );
   }
-}
-
-class InstalledApp {
-  final String packageName;
-  final String appName;
-  const InstalledApp({required this.packageName, required this.appName});
 }
