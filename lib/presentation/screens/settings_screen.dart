@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/theme/app_themes.dart';
 import '../../data/models/vpn_models.dart';
-import '../../services/vpn_service.dart';
+import '../../services/vpn_service_interface.dart';
 
 class SettingsScreen extends StatefulWidget {
   final VpnService vpnService;

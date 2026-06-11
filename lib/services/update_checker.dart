@@ -1,10 +1,10 @@
 import 'dart:convert';
-import 'dart:io';
+import 'dart:io' show Platform, Directory, File;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:path_provider/path_provider.dart';
 import '../core/theme/app_themes.dart';
 
 class UpdateInfo {
@@ -25,7 +25,12 @@ class UpdateChecker {
   static const String _repoApiUrl =
       'https://api.github.com/repos/justcheburek0-design/maxspeed_vpn/releases/latest';
 
+  /// Проверяет наличие обновления.
+  /// На web всегда возвращает null (обновление через перезагрузку страницы).
   static Future<UpdateInfo?> checkForUpdate() async {
+    // On web, updates are handled by page reload
+    if (kIsWeb) return null;
+
     try {
       final packageInfo = await PackageInfo.fromPlatform();
       final currentVersion = packageInfo.version;
@@ -42,21 +47,27 @@ class UpdateChecker {
       final publishedAt = DateTime.tryParse(data['published_at'] as String? ?? '') ?? DateTime.now();
 
       final assets = data['assets'] as List<dynamic>? ?? [];
-      String? apkUrl;
+      String? downloadUrl;
       for (final asset in assets) {
         final name = asset['name'] as String? ?? '';
-        if (name.endsWith('.apk')) {
-          apkUrl = asset['browser_download_url'] as String?;
+        // Pick the right asset for current platform
+        if (_matchesPlatform(name)) {
+          downloadUrl = asset['browser_download_url'] as String?;
           break;
         }
       }
 
-      if (apkUrl == null) return null;
+      // Fallback: any asset URL
+      if (downloadUrl == null && assets.isNotEmpty) {
+        downloadUrl = assets.first['browser_download_url'] as String?;
+      }
+
+      if (downloadUrl == null) return null;
 
       if (_compareVersions(latestVersion, currentVersion) > 0) {
         return UpdateInfo(
           version: latestVersion,
-          downloadUrl: apkUrl,
+          downloadUrl: downloadUrl,
           releaseNotes: body,
           publishedAt: publishedAt,
         );
@@ -67,6 +78,15 @@ class UpdateChecker {
       debugPrint('Update check failed: $e');
       return null;
     }
+  }
+
+  static bool _matchesPlatform(String filename) {
+    if (Platform.isAndroid) return filename.endsWith('.apk');
+    if (Platform.isIOS) return filename.endsWith('.ipa') || filename.contains('ios');
+    if (Platform.isMacOS) return filename.endsWith('.dmg') || filename.contains('macos');
+    if (Platform.isLinux) return filename.endsWith('.deb') || filename.endsWith('.AppImage') || filename.contains('linux');
+    if (Platform.isWindows) return filename.endsWith('.exe') || filename.contains('windows');
+    return false;
   }
 
   static int _compareVersions(String a, String b) {
@@ -82,12 +102,54 @@ class UpdateChecker {
   }
 
   static Future<void> downloadAndInstall(BuildContext context, UpdateInfo info) async {
-    // Show download dialog
+    // On non-Android platforms, open download URL in browser
+    if (!Platform.isAndroid) {
+      try {
+        final uri = Uri.parse(info.downloadUrl);
+        // url_launcher would be better, but for now just show the URL
+        if (context.mounted) {
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('Обновление'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Скачайте обновление для вашей платформы (${_currentPlatformLabel()}):'),
+                  const SizedBox(height: 12),
+                  SelectableText(
+                    info.downloadUrl,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Закрыть'),
+                ),
+              ],
+            ),
+          );
+        }
+      } catch (_) {}
+      return;
+    }
+
+    // Android: show download dialog
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => _DownloadDialog(url: info.downloadUrl, version: info.version),
     );
+  }
+
+  static String _currentPlatformLabel() {
+    if (Platform.isIOS) return 'iOS';
+    if (Platform.isMacOS) return 'macOS';
+    if (Platform.isLinux) return 'Linux';
+    if (Platform.isWindows) return 'Windows';
+    return 'Android';
   }
 }
 
@@ -126,9 +188,9 @@ class _DownloadDialogState extends State<_DownloadDialog> {
 
       final total = response.contentLength ?? 0;
 
-      // Save to app cache directory (FileProvider can access it)
-      final cacheDir = await getApplicationCacheDirectory();
-      final file = File('${cacheDir.path}/maxspeed_vpn_v${widget.version}.apk');
+      // Use a temp directory that doesn't require path_provider on all platforms
+      final tempDir = Directory.systemTemp;
+      final file = File('${tempDir.path}/maxspeed_vpn_v${widget.version}.apk');
       final sink = file.openWrite();
 
       int received = 0;
@@ -149,7 +211,6 @@ class _DownloadDialogState extends State<_DownloadDialog> {
 
       setState(() { _status = 'Загрузка завершена!'; _done = true; });
 
-      // Try to open installer
       await _openInstaller(file);
     } catch (e) {
       setState(() { _status = 'Ошибка: $e'; _error = true; });
@@ -160,19 +221,13 @@ class _DownloadDialogState extends State<_DownloadDialog> {
 
   Future<void> _openInstaller(File file) async {
     try {
-      // Copy to Downloads for accessibility
-      Directory? downloadDir;
       if (Platform.isAndroid) {
+        Directory? downloadDir;
         downloadDir = Directory('/storage/emulated/0/Download');
         if (!downloadDir.existsSync()) downloadDir.createSync(recursive: true);
-      } else {
-        downloadDir = await getApplicationCacheDirectory();
-      }
-      final destFile = File('${downloadDir!.path}/maxspeed_vpn_update.apk');
-      await file.copy(destFile.path);
+        final destFile = File('${downloadDir.path}/maxspeed_vpn_update.apk');
+        await file.copy(destFile.path);
 
-      // Use native Android Intent to install APK
-      if (Platform.isAndroid) {
         final result = await _channel.invokeMethod('installApk', {'path': destFile.path});
         if (result != true) {
           setState(() {
@@ -182,7 +237,7 @@ class _DownloadDialogState extends State<_DownloadDialog> {
       }
     } catch (e) {
       setState(() {
-        _status = 'Установите вручную:\n/storage/emulated/0/Download/maxspeed_vpn_update.apk';
+        _status = 'Установите вручную:\n/file ${file.path}';
       });
     }
   }
@@ -223,7 +278,6 @@ class _DownloadDialogState extends State<_DownloadDialog> {
   }
 }
 
-/// Показывает диалог обновления
 Future<void> showUpdateDialog(BuildContext context, UpdateInfo info) async {
   final theme = GlassTheme.of(context);
   showDialog(

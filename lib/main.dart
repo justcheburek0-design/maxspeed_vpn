@@ -6,7 +6,8 @@ import 'core/deeplink/deep_link_handler.dart';
 import 'presentation/screens/home_screen.dart';
 import 'presentation/screens/settings_screen.dart';
 import 'services/update_checker.dart';
-import 'services/vpn_service.dart';
+import 'services/vpn_service_factory.dart';
+import 'services/vpn_service_interface.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -78,7 +79,7 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
-    _vpnService = VpnService();
+    _vpnService = createVpnService();
     DeepLinkHandler.init();
     DeepLinkHandler.onLink.listen(_handleDeepLink);
     _checkInitialLink();
@@ -86,7 +87,6 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Future<void> _checkForUpdates() async {
-    // Wait for app to fully render first
     await Future.delayed(const Duration(seconds: 3));
     if (!mounted) return;
     try {
@@ -96,9 +96,7 @@ class _MainScreenState extends State<MainScreen> {
           showUpdateDialog(context, update);
         }
       }
-    } catch (_) {
-      // Silently skip update check on network error
-    }
+    } catch (_) {}
   }
 
   Future<void> _checkInitialLink() async {
@@ -135,11 +133,151 @@ class _MainScreenState extends State<MainScreen> {
 
     return Scaffold(
       backgroundColor: theme.bgPrimary,
-      body: SafeArea(
-        bottom: false,
-        child: IndexedStack(index: _currentIndex, children: screens),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          // Desktop layout: NavigationRail + content
+          if (constraints.maxWidth >= 700) {
+            return Row(
+              children: [
+                _buildSideNav(theme, constraints.maxWidth),
+                Expanded(
+                  child: IndexedStack(index: _currentIndex, children: screens),
+                ),
+              ],
+            );
+          }
+          // Mobile layout: content + BottomNavigationBar
+          return Column(
+            children: [
+              Expanded(
+                child: IndexedStack(index: _currentIndex, children: screens),
+              ),
+              _buildBottomNav(theme),
+            ],
+          );
+        },
       ),
-      bottomNavigationBar: _buildBottomNav(theme),
+    );
+  }
+
+  Widget _buildSideNav(AppTheme theme, double width) {
+    final isExtended = width >= 1000;
+
+    return Container(
+      width: isExtended ? 220 : 72,
+      decoration: BoxDecoration(
+        color: theme.surface.withValues(alpha: 0.7),
+        border: Border(
+          right: BorderSide(color: theme.outlineVariant.withValues(alpha: 0.3)),
+        ),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(height: 24),
+          // Logo
+          if (isExtended)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  Icon(Icons.shield_outlined, color: theme.primary, size: 28),
+                  const SizedBox(width: 10),
+                  Text(
+                    'MaxSpeedVPN',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: theme.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            Icon(Icons.shield_outlined, color: theme.primary, size: 28),
+          const SizedBox(height: 32),
+          // Nav items
+          _sideNavItem(0, Icons.home_rounded, 'Главная', theme, isExtended),
+          const SizedBox(height: 4),
+          _sideNavItem(1, Icons.settings_rounded, 'Настройки', theme, isExtended),
+          const Spacer(),
+          // Platform badge
+          if (isExtended)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                _platformLabel,
+                style: TextStyle(fontSize: 10, color: theme.outline),
+              ),
+            ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  String get _platformLabel {
+    if (Theme.of(context).platform == TargetPlatform.linux) return 'Linux';
+    if (Theme.of(context).platform == TargetPlatform.macOS) return 'macOS';
+    if (Theme.of(context).platform == TargetPlatform.windows) return 'Windows';
+    if (Theme.of(context).platform == TargetPlatform.iOS) return 'iOS';
+    return 'Android';
+  }
+
+  Widget _sideNavItem(int index, IconData icon, String label, AppTheme theme, bool extended) {
+    final isSelected = _currentIndex == index;
+
+    if (!extended) {
+      return IconButton(
+        onPressed: () => setState(() => _currentIndex = index),
+        icon: Icon(
+          icon,
+          color: isSelected ? theme.primary : theme.onSurfaceVariant,
+        ),
+        style: IconButton.styleFrom(
+          backgroundColor: isSelected ? theme.primary.withValues(alpha: 0.1) : Colors.transparent,
+          minimumSize: const Size(48, 48),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => setState(() => _currentIndex = index),
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: isSelected ? theme.primary.withValues(alpha: 0.1) : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+              border: isSelected
+                  ? Border.all(color: theme.primary.withValues(alpha: 0.2))
+                  : null,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  color: isSelected ? theme.primary : theme.onSurfaceVariant,
+                  size: 22,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                    color: isSelected ? theme.primary : theme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 

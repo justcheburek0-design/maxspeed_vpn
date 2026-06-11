@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_themes.dart';
 import '../../data/models/vpn_models.dart';
-import '../../services/vpn_service.dart';
+import '../../services/vpn_service_interface.dart';
 import '../widgets/power_button.dart';
 
 class HomeScreen extends StatefulWidget {
