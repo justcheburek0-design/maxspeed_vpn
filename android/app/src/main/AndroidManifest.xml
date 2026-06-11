@@ -42,11 +42,20 @@
                 <data android:scheme="mxspd" />
             </intent-filter>
 
-        </activity>
+    </activity>
 
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
 
     </application>
+
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="application/vnd.android.package-archive" />
+        </intent>
+        <package android:name="com.android.packageinstaller" />
+        <package android:name="com.google.android.packageinstaller" />
+    </queries>
 </manifest>

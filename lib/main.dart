@@ -180,7 +180,6 @@ class _MainScreenState extends State<MainScreen> {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(34),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               _navItem(0, Icons.home_rounded, 'Главная', theme),
               _navItem(1, Icons.settings_rounded, 'Настройки', theme),
@@ -193,37 +192,64 @@ class _MainScreenState extends State<MainScreen> {
 
   Widget _navItem(int index, IconData icon, String label, AppTheme theme) {
     final isSelected = _currentIndex == index;
-    final color = isSelected ? theme.primary : theme.onSurfaceVariant;
+    final activeColor = theme.primary;
+    final inactiveColor = theme.onSurfaceVariant;
 
     return Expanded(
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: () => setState(() => _currentIndex = index),
+          splashColor: theme.primary.withValues(alpha: 0.1),
+          highlightColor: theme.primary.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(28),
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
+            duration: const Duration(milliseconds: 300),
             curve: Curves.easeOutCubic,
+            margin: const EdgeInsets.all(6),
             padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: isSelected ? theme.primary.withValues(alpha: 0.15) : Colors.transparent,
+              borderRadius: BorderRadius.circular(28),
+              border: isSelected
+                  ? Border.all(color: theme.primary.withValues(alpha: 0.3), width: 1)
+                  : null,
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: theme.primary.withValues(alpha: 0.15),
+                        blurRadius: 12,
+                        spreadRadius: 0,
+                      ),
+                    ]
+                  : null,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOutCubic,
                   padding: EdgeInsets.all(isSelected ? 6 : 4),
                   decoration: BoxDecoration(
-                    color: isSelected ? theme.primary.withValues(alpha: 0.15) : Colors.transparent,
+                    color: isSelected ? theme.primary.withValues(alpha: 0.2) : Colors.transparent,
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: Icon(icon, size: 22, color: color),
+                  child: Icon(
+                    icon,
+                    size: isSelected ? 24 : 22,
+                    color: isSelected ? activeColor : inactiveColor,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   label,
                   style: TextStyle(
                     fontSize: 10,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                    color: color,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
+                    color: isSelected ? activeColor : inactiveColor,
+                    letterSpacing: isSelected ? 0.3 : 0,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
