@@ -173,9 +173,7 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
             _infoTile(theme, 'Протокол', 'VLESS / REALITY'),
             Divider(color: theme.outlineVariant, height: 1, indent: 16, endIndent: 16),
             _infoTile(theme, 'Engine', 'sing-box v1.13'),
-            Divider(color: theme.outlineVariant, height: 1, indent: 16, endIndent: 16),
-            _infoTile(theme, 'Design', 'by envywook'),
-          ],
+          ]),
         ),
       ],
     );
