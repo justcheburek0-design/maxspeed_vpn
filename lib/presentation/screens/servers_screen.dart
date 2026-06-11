@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
 import '../../core/theme/app_themes.dart';
 import '../../data/models/vpn_models.dart';
 import '../../services/vpn_service.dart';
@@ -32,42 +34,55 @@ class _ServersScreenState extends State<ServersScreen> {
     final subUrl = prefs.getString('subscription_url') ?? '';
     final subName = prefs.getString('subscription_name') ?? 'MaxSpeedVPN';
     final subExpiry = prefs.getString('subscription_expiry') ?? '';
-    final subData = prefs.getString('subscription_data') ?? '';
 
+    // Try loading servers from subscription URL first
     if (subUrl.isNotEmpty) {
-      _subscriptions = [
-        VpnSubscription(
-          id: 'sub_1',
-          name: subName,
-          url: subUrl,
-          expiresAt: subExpiry.isNotEmpty ? DateTime.tryParse(subExpiry) : null,
-          totalBytes: subData.isNotEmpty ? _parseDataSize(subData) : 0,
-        ),
-      ];
+      try {
+        final servers = await _fetchSubscription(subUrl);
+        if (servers.isNotEmpty) {
+          _servers = servers;
+          _subscriptions = [
+            VpnSubscription(
+              id: 'sub_1',
+              name: subName,
+              url: subUrl,
+              expiresAt: subExpiry.isNotEmpty ? DateTime.tryParse(subExpiry) : null,
+            ),
+          ];
+          // Persist raw server links
+          await prefs.setStringList('servers', servers.map((s) => s.rawConfig['link'] as String? ?? '').where((l) => l.isNotEmpty).toList());
+          setState(() => _loading = false);
+          return;
+        }
+      } catch (e) {
+        debugPrint('Subscription load error: $e');
+      }
     }
 
-    // Load servers from subscription
-    final serversJson = prefs.getStringList('servers') ?? [];
-    _servers = serversJson.map((j) {
-      // Simple parsing - in production use jsonDecode
-      return VpnServer(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        name: 'Сервер',
-        address: '0.0.0.0',
-        port: 443,
-        protocol: VpnProtocol.vless,
-        security: VpnSecurity.none,
-        uuid: '',
-        rawConfig: {},
-      );
-    }).toList();
+    // Fallback: load cached server links from SharedPreferences
+    final cachedLinks = prefs.getStringList('servers') ?? [];
+    if (cachedLinks.isNotEmpty) {
+      _servers = cachedLinks
+          .map((l) => VlessParser.parseToServer(l))
+          .whereType<VpnServer>()
+          .toList();
+    }
 
-    // If no servers loaded, show demo
+    // If nothing loaded, show demo
     if (_servers.isEmpty) {
       _servers = _demoServers();
     }
 
     setState(() => _loading = false);
+  }
+
+  Future<List<VpnServer>> _fetchSubscription(String url) async {
+    final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
+    if (response.statusCode == 200) {
+      final body = utf8.decode(response.bodyBytes);
+      return SubscriptionParser.parse(body);
+    }
+    return [];
   }
 
   int _parseDataSize(String data) {

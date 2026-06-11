@@ -521,7 +521,23 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
             child: Text('Отмена', style: TextStyle(color: theme.onSurfaceVariant)),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () async {
+              final url = controller.text.trim();
+              if (url.isNotEmpty) {
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setString('subscription_url', url);
+                await prefs.setString('subscription_name', 'MaxSpeedVPN');
+                if (ctx.mounted) Navigator.pop(ctx);
+                // Reload servers from subscription
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Подписка добавлена. Перезайдите в экран серверов.')),
+                  );
+                }
+              } else {
+                Navigator.pop(ctx);
+              }
+            },
             style: FilledButton.styleFrom(
               backgroundColor: theme.primary,
               foregroundColor: theme.onPrimary,
