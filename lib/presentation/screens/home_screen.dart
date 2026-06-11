@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_themes.dart';
@@ -78,7 +77,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             child: Column(
               children: [
                 _buildHeader(context, theme),
-                const SizedBox(height: 40),
+                const SizedBox(height: 24),
+                _buildSubscriptionCard(context, theme),
+                const SizedBox(height: 24),
                 _buildPowerSection(context, theme),
                 const SizedBox(height: 32),
                 _buildStatsSection(context, theme),
@@ -165,6 +166,100 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w500),
         ),
       ],
+    );
+  }
+
+  /// INCY-style subscription card with traffic data
+  Widget _buildSubscriptionCard(BuildContext ctx, AppTheme theme) {
+    // Demo subscription data — in production comes from VpnService
+    final subName = 'MaxSpeedVPN';
+    final daysLeft = 23;
+    final totalGB = 100.0;
+    final usedGB = 37.2;
+    final progress = (usedGB / totalGB).clamp(0.0, 1.0);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: theme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.subscriptions_outlined, color: theme.primary, size: 18),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      subName,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: theme.onSurface,
+                      ),
+                    ),
+                    Text(
+                      'Осталось $daysLeft дн.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: daysLeft < 7 ? theme.error : theme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                'by envywook',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: theme.outline,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          // Traffic bar
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Трафик',
+                style: TextStyle(fontSize: 11, color: theme.onSurfaceVariant),
+              ),
+              Text(
+                '${usedGB.toStringAsFixed(1)} / ${totalGB.toStringAsFixed(0)} GB',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: theme.onSurface),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 6,
+              backgroundColor: theme.surfaceVariant,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                progress > 0.8 ? theme.error : theme.primary,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -428,7 +523,6 @@ class _ServerPickerSheetState extends State<_ServerPickerSheet> {
   String _search = '';
 
   List<VpnServer> get _servers {
-    // Get servers from service or use demo
     final demo = [
       VpnServer(
         id: 'demo1', name: 'Ютуб РФ', address: '1.2.3.4', port: 443,
@@ -481,7 +575,6 @@ class _ServerPickerSheetState extends State<_ServerPickerSheet> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Handle
           Container(
             margin: const EdgeInsets.only(top: 10),
             width: 36,
@@ -508,14 +601,14 @@ class _ServerPickerSheetState extends State<_ServerPickerSheet> {
               onChanged: (v) => setState(() => _search = v),
               style: TextStyle(color: theme.onSurface, fontSize: 14),
               decoration: InputDecoration(
-                hintText: 'Поиск серверов...',
-                hintStyle: TextStyle(color: theme.outline),
-                prefixIcon: Icon(Icons.search, color: theme.outline, size: 20),
+                hintText: 'Поиск...',
+                hintStyle: TextStyle(color: theme.outline, fontSize: 14),
+                prefixIcon: Icon(Icons.search_rounded, color: theme.outline, size: 20),
                 filled: true,
-                fillColor: theme.bgPrimary,
+                fillColor: theme.surfaceVariant.withValues(alpha: 0.5),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: theme.outlineVariant),
+                  borderSide: BorderSide.none,
                 ),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               ),
@@ -524,50 +617,70 @@ class _ServerPickerSheetState extends State<_ServerPickerSheet> {
           const SizedBox(height: 8),
           Flexible(
             child: ListView.builder(
-              shrinkWrap: true,
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 20 + 8),
+              padding: EdgeInsets.fromLTRB(20, 0, 20, bottomPad + 16),
               itemCount: servers.length,
               itemBuilder: (c, i) {
                 final server = servers[i];
-                final pingColor = server.ping != null
-                    ? (server.ping! < 100 ? theme.success : server.ping! < 300 ? theme.warning : theme.error)
-                    : theme.outline;
                 return Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
+                  padding: const EdgeInsets.only(bottom: 8),
                   child: Material(
                     color: Colors.transparent,
                     child: InkWell(
                       onTap: () {
-                        widget.vpnService.connect(server).then((success) {
-                          if (success && context.mounted) {
-                            Navigator.pop(context);
-                          }
-                        });
+                        widget.vpnService.connect(server);
+                        Navigator.pop(context);
                       },
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(14),
                       child: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          color: theme.bgPrimary,
+                          borderRadius: BorderRadius.circular(14),
+                          color: theme.surfaceVariant.withValues(alpha: 0.3),
                           border: Border.all(color: theme.outlineVariant),
                         ),
                         child: Row(
                           children: [
-                            Text(server.flag ?? '🌐', style: const TextStyle(fontSize: 24)),
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: theme.surfaceVariant,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Center(
+                                child: Text(server.flag ?? '🌐', style: const TextStyle(fontSize: 22)),
+                              ),
+                            ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(server.name, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: theme.onSurface)),
+                                  Text(
+                                    server.name,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: theme.onSurface,
+                                    ),
+                                  ),
                                   const SizedBox(height: 2),
-                                  Text('${server.protocol.displayName} · ${server.security.displayName}', style: TextStyle(fontSize: 11, color: theme.onSurfaceVariant)),
+                                  Text(
+                                    server.protocol.displayName,
+                                    style: TextStyle(fontSize: 11, color: theme.onSurfaceVariant),
+                                  ),
                                 ],
                               ),
                             ),
                             if (server.ping != null)
-                              Text('${server.ping}ms', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: pingColor)),
+                              Text(
+                                '${server.ping}ms',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: _pingColor(server.ping!),
+                                ),
+                              ),
                           ],
                         ),
                       ),
@@ -577,9 +690,14 @@ class _ServerPickerSheetState extends State<_ServerPickerSheet> {
               },
             ),
           ),
-          SizedBox(height: bottomPad),
         ],
       ),
     );
+  }
+
+  Color _pingColor(int ping) {
+    if (ping < 100) return const Color(0xFFA8E63D);
+    if (ping < 300) return const Color(0xFFFBBF24);
+    return const Color(0xFFFF7043);
   }
 }

@@ -35,7 +35,6 @@ class _ServersScreenState extends State<ServersScreen> {
     final subName = prefs.getString('subscription_name') ?? 'MaxSpeedVPN';
     final subExpiry = prefs.getString('subscription_expiry') ?? '';
 
-    // Try loading servers from subscription URL first
     if (subUrl.isNotEmpty) {
       try {
         final servers = await _fetchSubscription(subUrl);
@@ -49,7 +48,6 @@ class _ServersScreenState extends State<ServersScreen> {
               expiresAt: subExpiry.isNotEmpty ? DateTime.tryParse(subExpiry) : null,
             ),
           ];
-          // Persist raw server links
           await prefs.setStringList('servers', servers.map((s) => s.rawConfig['link'] as String? ?? '').where((l) => l.isNotEmpty).toList());
           setState(() => _loading = false);
           return;
@@ -59,7 +57,6 @@ class _ServersScreenState extends State<ServersScreen> {
       }
     }
 
-    // Fallback: load cached server links from SharedPreferences
     final cachedLinks = prefs.getStringList('servers') ?? [];
     if (cachedLinks.isNotEmpty) {
       _servers = cachedLinks
@@ -68,7 +65,6 @@ class _ServersScreenState extends State<ServersScreen> {
           .toList();
     }
 
-    // If nothing loaded, show demo
     if (_servers.isEmpty) {
       _servers = _demoServers();
     }
@@ -83,20 +79,6 @@ class _ServersScreenState extends State<ServersScreen> {
       return SubscriptionParser.parse(body);
     }
     return [];
-  }
-
-  int _parseDataSize(String data) {
-    if (data.isEmpty) return 0;
-    final match = RegExp(r'(\d+\.?\d*)\s*(GB|MB|KB|B)', caseSensitive: false).firstMatch(data);
-    if (match == null) return 0;
-    final value = double.tryParse(match.group(1) ?? '0') ?? 0;
-    final unit = match.group(2)?.toUpperCase() ?? 'B';
-    switch (unit) {
-      case 'GB': return (value * 1024 * 1024 * 1024).toInt();
-      case 'MB': return (value * 1024 * 1024).toInt();
-      case 'KB': return (value * 1024).toInt();
-      default: return value.toInt();
-    }
   }
 
   List<VpnServer> _demoServers() {
@@ -445,7 +427,6 @@ class _ServersScreenState extends State<ServersScreen> {
   }
 
   void _connect(VpnServer server) {
-    // Set active server and connect
     widget.vpnService.connect(server).then((success) {
       if (!success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -456,6 +437,5 @@ class _ServersScreenState extends State<ServersScreen> {
         );
       }
     });
-    // Don't pop — this screen is inside IndexedStack, not a pushed route
   }
 }
