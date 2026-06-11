@@ -1,85 +1,72 @@
-# Security Policy
+# Политика безопасности
 
-## Supported Versions
+## Поддерживаемые версии
 
-We actively maintain and provide security updates for the following
-versions of MaxSpeed VPN:
+Мы активно поддерживаем и предоставляем обновления безопасности для следующих версий MaxSpeed VPN:
 
-| Version | Supported          |
+| Версия | Статус поддержки |
 | ------- | ------------------ |
-| 2.x     | ✅ Active support  |
-| 1.x     | ⚠️ Maintenance only |
-| < 1.0   | ❌ End of life     |
+| 2.x     | ✅ Активная поддержка |
+| 1.x     | ⚠️ Только обслуживание |
+| < 1.0   | ❌ Конец жизненного цикла |
 
-## Reporting a Vulnerability
+## Сообщение об уязвимостях
 
-If you discover a security vulnerability in MaxSpeed VPN, please report
-it responsibly. **Do not open public GitHub issues for security bugs.**
+Если вы обнаружили уязвимость безопасности в MaxSpeed VPN, пожалуйста, сообщите о ней ответственно. **Не создавайте публичные issues на GitHub для багов безопасности.**
 
-### How to Report
+### Как сообщить
 
-- **Email**: security@maxspeedvpn.com (PGP key available on request)
-- **Response time**: We acknowledge reports within 48 hours
-- **Resolution time**: We target patches within 14 days for critical
-  issues, 30 days for high-severity issues
-- **Disclosure**: We follow coordinated disclosure. Once a fix is
-  published, we credit the reporter (with permission) in our advisory.
+- **Email**: [email removed] (PGP-ключ доступен по запросу)
+- **Время ответа**: Мы подтверждаем получение отчёта в течение 48 часов
+- **Время исправления**: Мы стремимся выпустить патч в течение 14 дней для критических проблем, 30 дней для проблем высокой серьёзности
+- **Раскрытие**: Мы следуем координированному раскрытию. После публикации исправления мы указываем автора отчёта (с его разрешения) в нашем консультативном сообщении.
 
-### What to Include
+### Что включить в отчёт
 
-1. Description of the vulnerability
-2. Steps to reproduce
-3. Affected versions
-4. Potential impact assessment
-5. Suggested mitigation (if any)
+1. Описание уязвимости
+2. Шаги для воспроизведения
+3. Затронутые версии
+4. Оценка потенциального воздействия
+5. Предлагаемые меры по смягчению (если есть)
 
-## Security Architecture
+## Архитектура безопасности
 
-MaxSpeed VPN is designed with privacy and security as core principles:
+MaxSpeed VPN разработан с приватностью и безопасностью как основными принципами:
 
-- **WireGuard protocol**: Modern, audited cryptography (Noise protocol
-  framework, Curve25519, ChaCha20, Poly1305, BLAKE2s)
-- **No-logging policy**: We do not collect, store, or transmit user
-  activity logs. Our servers run in RAM-only mode
-- **Open source**: Full source code is available for independent audit
-  at https://github.com/maxspeedvpn/maxspeed-vpn
-- **Certificate pinning**: Prevents MITM attacks on our API endpoints
-- **Kill switch**: OS-level VPN kill switch prevents traffic leaks
-  when the tunnel drops
-- **DNS leak protection**: All DNS queries are routed through the VPN
-  tunnel with DNS-over-HTTPS (DoH) encryption
+- **Протокол WireGuard**: Современная аудируемая криптография (Noise protocol framework, Curve25519, ChaCha20, Poly1305, BLAKE2s)
+- **Политика отсутствия логов**: Мы не собираем, не храним и не передаём логи активности пользователей. Наши серверы работают в режиме только в оперативной памяти
+- **Открытый исходный код**: Полный исходный код доступен для независимого аудита на https://github.com/maxspeedvpn/maxspeed-vpn
+- **Certificate pinning**: Предотвращает MITM-атаки на наши API-эндпоинты
+- **Kill switch**: VPN kill switch на уровне ОС предотвращает утечки трафика при падении туннеля
+- **Защита от утечек DNS**: Все DNS-запросы маршрутизируются через VPN-туннель с шифрованием DNS-over-HTTPS (DoH)
 
-## Secure Development Practices
+## Практики безопасной разработки
 
-- All code changes require peer review before merging
-- Automated SAST scanning on every pull request
-- Dependency vulnerability scanning on every build
-- Reproducible builds for release verification
-- Signed release artifacts with published checksums
-- Memory-safe practices in native libraries (bounds checking,
-  null-safety enforcement)
+- Все изменения кода требуют ревью перед слиянием
+- Автоматическое SAST-сканирование для каждого pull request
+- Сканирование уязвимостей зависимостей при каждой сборке
+- Воспроизводимые сборки для верификации релизов
+- Подписанные релизные артефакты с опубликованными контрольными суммами
+- Безопасные практики работы с памятью в нативных библиотеках (проверка границ, обеспечение null-safety)
 
-## Incident History
+## История инцидентов
 
-| Date       | Severity | Description              | Status   |
+| Дата | Серьёзность | Описание | Статус |
 | ---------- | -------- | ------------------------ | -------- |
-| No incidents reported to date. This table | will be | updated | accordingly. |
+| На данный момент инцидентов не зарегистрировано. Эта таблица будет обновлена при необходимости. |
 
-## Security Audits
+## Аудиты безопасности
 
-MaxSpeed VPN undergoes independent security audits:
+MaxSpeed VPN проходит независимые аудиты безопасности:
 
-- **2025 Q2**: Network architecture audit by [Audit Firm TBD]
-- **2025 Q4**: Full application penetration test by [Audit Firm TBD]
+- **2025 Q2**: Аудит сетевой архитектуры от [Audit Firm TBD]
+- **2025 Q4**: Полное тестирование на проникновение приложения от [Audit Firm TBD]
 
-Audit reports will be published upon completion at
-https://maxspeedvpn.com/security/audits
+Отчёты об аудитах будут опубликованы по завершении на https://maxspeedvpn.com/security/audits
 
-## Responsible Disclosure Safe Harbor
+## Безопасная гавань для ответственного раскрытия
 
-We will not pursue legal action against researchers who:
-- Make good-faith efforts to avoid privacy violations and service
-  interruptions
-- Only interact with accounts you own or have explicit permission to
-- Report vulnerabilities promptly and allow reasonable time for
-  remediation before public disclosure
+Мы не будем преследовать исследователей, которые:
+- Добросовестно стараются избежать нарушений приватности и перебоев в работе сервиса
+- Взаимодействуют только с аккаунтами, которыми вы владеете, или имеете явное разрешение
+- Своевременно сообщают об уязвимостях и предоставляют разумное время для исправления перед публичным раскрытием

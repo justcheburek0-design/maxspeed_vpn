@@ -1,119 +1,117 @@
-# Emergency Procedures — MaxSpeed VPN
+# Аварийные процедуры — MaxSpeed VPN
 
-This document defines the incident response plan for security events,
-data breaches, and critical vulnerabilities affecting MaxSpeed VPN.
+Этот документ определяет план реагирования на инциденты безопасности, утечки данных и критические уязвимости, затрагивающие MaxSpeed VPN.
 
 ---
 
-## Incident Severity Levels
+## Уровни серьёзности инцидентов
 
-| Level | Description                              | Response Time |
+| Уровень | Описание | Время реагирования |
 | ----- | ---------------------------------------- | ------------- |
-| **P0** | Active data breach, service compromise | Immediate     |
-| **P1** | Critical vulnerability, user data risk  | 1 hour        |
-| **P2** | Service degradation, partial outage     | 4 hours       |
-| **P3** | Minor issue, no user data at risk        | 24 hours      |
+| **P0** | Активная утечка данных, компрометация сервиса | Немедленно |
+| **P1** | Критическая уязвимость, риск для пользовательских данных | 1 час |
+| **P2** | Деградация сервиса, частичная недоступность | 4 часа |
+| **P3** | Незначительная проблема, без риска для пользовательских данных | 24 часа |
 
 ---
 
-## Data Breach Response
+## Реагирование на утечку данных
 
-### Phase 1: Detection (Minutes 0–30)
+### Фаза 1: Обнаружение (Минуты 0–30)
 
-1. Confirm the breach — validate alerts, rule out false positives
-2. Classify severity using the levels above
-3. Notify the Incident Response Team (IRT) via emergency channel
-4. Begin incident log — record all actions with timestamps
+1. Подтвердить утечку — валидировать алерты, исключить ложные срабатывания
+2. Классифицировать серьёзность по уровням выше
+3. Уведомить группу реагирования на инциденты (IRT) через аварийный канал
+4. Начать журнал инцидента — записывать все действия с временными метками
 
-### Phase 2: Containment (Minutes 30–120)
+### Фаза 2: Сдерживание (Минуты 30–120)
 
-1. Isolate affected servers and services
-2. Revoke compromised credentials and API keys
-3. Enable emergency firewall rules to block attack vectors
-4. Preserve forensic evidence — disk images, logs, network captures
-5. Do NOT reboot or modify affected systems yet
+1. Изолировать затронутые серверы и сервисы
+2. Отозвать скомпрометированные учётные данные и API-ключи
+3. Включить аварийные правила файрвола для блокировки векторов атаки
+4. Сохранить криминалистические доказательства — образы дисков, логи, сетевые захваты
+5. НЕ перезагружать и НЕ изменять затронутые системы
 
-### Phase 3: Eradication (Hours 2–24)
+### Фаза 3: Устранение (Часы 2–24)
 
-1. Identify root cause through log analysis and forensics
-2. Patch the exploited vulnerability
-3. Rotate all service credentials (API keys, certificates, tokens)
-4. Scan all systems for persistence mechanisms (backdoors, etc.)
+1. Определить корневую причину через анализ логов и криминалистику
+2. Запатковать эксплуатируемую уязвимость
+3. Ротация всех сервисных учётных данных (API-ключи, сертификаты, токены)
+4. Проверить все системы на наличие механизмов закрепления (бэкдоры и т.д.)
 
-### Phase 4: Recovery (Hours 24–72)
+### Фаза 4: Восстановление (Часы 24–72)
 
-1. Restore services from known-good backups
-2. Verify integrity of all restored systems
-3. Monitor for signs of re-compromise
-4. Gradually re-enable user traffic
+1. Восстановить сервисы из проверенных резервных копий
+2. Проверить целостность всех восстановленных систем
+3. Мониторить признаки повторной компрометации
+4. Постепенно включить пользовательский трафик
 
-### Phase 5: Post-Incident (Days 3–14)
+### Фаза 5: После инцидента (Дни 3–14)
 
-1. Write full incident report
-2. Conduct blameless post-mortem meeting
-3. Implement preventive measures
-4. Notify affected users per legal requirements
-5. Update this document with lessons learned
-
----
-
-## Vulnerability Reporting & Escalation
-
-### Internal Reports
-
-1. Reporter files issue with `security` label in GitHub
-2. Security lead triages within 4 hours
-3. Critical: patch target is 72 hours
-4. High: patch target is 7 days
-5. Medium: patch target is next release cycle
-6. Low: backlog for next sprint
-
-### External Reports
-
-All external vulnerability reports go to security@maxspeedvpn.com.
-See SECURITY.md for the full responsible disclosure process.
+1. Написать полный отчёт об инциденте
+2. Провести разбор инцидента без поиска виноватых
+3. Внедрить превентивные меры
+4. Уведомить затронутых пользователей в соответствии с законодательством
+5. Обновить этот документ с учётом извлечённых уроков
 
 ---
 
-## Emergency Contacts
+## Сообщение об уязвимостях и эскалация
 
-| Role              | Contact                        | Escalation |
+### Внутренние отчёты
+
+1. Автор создаёт issue с меткой `security` на GitHub
+2. Руководитель безопасности выполняет триаж в течение 4 часов
+3. Критические: цель патча — 72 часа
+4. Высокие: цель патча — 7 дней
+5. Средние: цель патча — следующий цикл релизов
+6. Низкие: в бэклог на следующий спринт
+
+### Внешние отчёты
+
+Все внешние отчёты об уязвимостях направляются на [email removed].
+Подробный процесс ответственного раскрытия см. в SECURITY.md.
+
+---
+
+## Контакты для экстренной связи
+
+| Роль | Контакт | Эскалация |
 | ----------------- | ------------------------------ | ---------- |
-| Security Lead     | security@maxspeedvpn.com       | Primary    |
-| Project Lead      | lead@maxspeedvpn.com           | Secondary  |
-| Infrastructure    | infra@maxspeedvpn.com          | On-demand  |
-| Legal             | legal@maxspeedvpn.com          | On-demand  |
-| PGP Key           | https://maxspeedvpn.com/pgp    | Always     |
+| Руководитель безопасности | [email removed] | Первичный |
+| Руководитель проекта | [email removed] | Вторичный |
+| Инфраструктура | [email removed] | По запросу |
+| Юридический отдел | [email removed] | По запросу |
+| PGP-ключ | https://maxspeedvpn.com/pgp | Всегда |
 
 ---
 
-## Emergency Communication Channels
+## Каналы экстренной связи
 
-- **IRT Slack/Discord**: #security-incidents (restricted access)
-- **Status Page**: https://status.maxspeedvpn.com
-- **Public Updates**: https://maxspeedvpn.com/blog/security
-- **User Notification**: In-app notification + email to affected users
+- **IRT Slack/Discord**: #security-incidents (ограниченный доступ)
+- **Страница статуса**: https://status.maxspeedvpn.com
+- **Публичные обновления**: https://maxspeedvpn.com/blog/security
+- **Уведомление пользователей**: Встроенное уведомление в приложении + email затронутым пользователям
 
 ---
 
-## Rollback Procedures
+## Процедуры отката
 
 ```bash
-# Emergency rollback to last known-good release
+# Аварийный откат к последнему стабильному релизу
 git revert HEAD
 git push origin main
-# CI/CD will automatically build and deploy the revert
+# CI/CD автоматически соберёт и развёрнет откат
 
-# Server-side rollback
-ssh deploy@infra.maxspeedvpn.com
+# Откат на стороне сервера
+ssh [email removed]
 sudo maxspeedctl rollback --to=last-stable
 ```
 
 ---
 
-## Regulatory Notification
+## Уведомление регуляторов
 
-- **GDPR**: Notify supervisory authority within 72 hours if EU user
-  data is affected
-- **State Laws**: Comply with applicable state breach notification laws
-- Notify affected users without undue delay when required
+- **GDPR**: Уведомить надзорный орган в течение 72 часов, если затронуты данные пользователей ЕС
+- **Законы штатов**: Соблюдать применимые законы штатов об уведомлении об утечках
+- Уведомить затронутых пользователей без неоправданной задержки, когда это требуется

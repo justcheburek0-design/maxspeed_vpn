@@ -1,10 +1,8 @@
-# MaxSpeedVPN — API Documentation
+# MaxSpeedVPN — Справочник API
 
-## Core Services
+## Основные сервисы
 
 ### VpnService
-
-Основной сервис для управления VPN-подключением.
 
 ```dart
 abstract class VpnService {
@@ -17,24 +15,14 @@ abstract class VpnService {
 }
 ```
 
-**Методы:**
-- `connect(config)` — подключиться к VPN с JSON-конфигом sing-box
-- `disconnect()` — отключиться от VPN
-- `getState()` — получить текущее состояние
-- `getStats()` — получить статистику (bytes in/out, ping)
-- `stateStream` — поток изменений состояния
-- `statsStream` — поток обновлений статистики
+- `connect(config)` — подключиться с JSON-конфигом sing-box
+- `disconnect()` — отключиться
+- `getState()` — текущее состояние
+- `getStats()` — статистика (bytes in/out, ping)
 
-**Состояния:**
-- `disconnected` — отключено
-- `connecting` — подключение
-- `connected` — подключено
-- `disconnecting` — отключение
-- `error` — ошибка
+**Состояния:** disconnected, connecting, connected, disconnecting, error
 
 ### SubscriptionService
-
-Сервис для управления подписками.
 
 ```dart
 class SubscriptionService {
@@ -48,8 +36,6 @@ class SubscriptionService {
 
 ### SettingsService
 
-Сервис для управления настройками.
-
 ```dart
 class SettingsService {
   Future<void> setTheme(bool isDark);
@@ -61,91 +47,63 @@ class SettingsService {
 }
 ```
 
-## Domain Use Cases
+## Use Cases
 
 ### ConnectVpnUseCase
-
 ```dart
 class ConnectVpnUseCase {
   Future<bool> execute(String config);
 }
 ```
-
-Выполняет подключение к VPN. Принимает JSON-конфиг sing-box.
-Бросает `ArgumentError` если конфиг пустой.
-Бросает `FormatException` если конфиг невалидный JSON.
+Принимает JSON-конфиг. `ArgumentError` если пустой, `FormatException` если невалидный JSON.
 
 ### DisconnectVpnUseCase
-
 ```dart
 class DisconnectVpnUseCase {
   Future<bool> execute();
 }
 ```
 
-Выполняет отключение от VPN.
-
 ### RefreshSubscriptionUseCase
-
 ```dart
 class RefreshSubscriptionUseCase {
   Future<Map<String, dynamic>> execute(String url);
 }
 ```
 
-Обновляет подписку по URL. Возвращает карту с ключом `servers`.
-
 ### PingServerUseCase
-
 ```dart
 class PingServerUseCase {
   Future<int> execute(String host, int port);
   Future<int> measureJitter(String host, int port);
 }
 ```
-
-Пингует сервер. Возвращает пинг в мс или -1 при таймауте.
+Возвращает пинг в мс или -1 при таймауте.
 
 ### ImportSubscriptionUseCase
-
 ```dart
 class ImportSubscriptionUseCase {
   Future<Map<String, dynamic>> execute({String? url, String? content});
 }
 ```
 
-Импортирует подписку из URL или строки.
-
-## Data Models
+## Модели данных
 
 ### ServerModel
-
 ```dart
 class ServerModel {
-  final String id;
-  final String name;
-  final String address;
+  final String id, name, address, protocol;
   final int port;
-  final String protocol;
-  final String? uuid;
-  final String? password;
-  final String? security;
-  final String? sni;
-  final String? fingerprint;
-  final String? publicKey;
-  final String? shortId;
-  final String? network;
+  final String? uuid, password, security, sni;
+  final String? fingerprint, publicKey, shortId, network;
   final Map<String, dynamic>? extra;
 }
 ```
 
 ### SubscriptionModel
-
 ```dart
 class SubscriptionModel {
-  final String id;
-  final String name;
-  final String url;
+  final String id, name, url;
   final DateTime lastUpdate;
   final int serversCount;
   final bool isActive;
@@ -153,36 +111,26 @@ class SubscriptionModel {
 ```
 
 ### ConnectionStatsModel
-
 ```dart
 class ConnectionStatsModel {
-  final int bytesReceived;
-  final int bytesSent;
-  final int ping;
-  final int jitter;
+  final int bytesReceived, bytesSent, ping, jitter;
   final Duration duration;
   final DateTime connectedAt;
 }
 ```
 
 ### SettingsModel
-
 ```dart
 class SettingsModel {
-  final bool isDarkMode;
-  final String language;
-  final bool autoConnect;
-  final bool killSwitch;
-  final String defaultProtocol;
-  final bool notifications;
-  final bool analytics;
+  final bool isDarkMode, autoConnect, killSwitch;
+  final String language, defaultProtocol;
+  final bool notifications, analytics;
 }
 ```
 
-## Presentation Providers
+## Providers
 
 ### ConnectionProvider
-
 ```dart
 class ConnectionProvider extends StateNotifier<ConnectionState> {
   void setState(VpnState state);
@@ -193,7 +141,6 @@ class ConnectionProvider extends StateNotifier<ConnectionState> {
 ```
 
 ### ServersProvider
-
 ```dart
 class ServersProvider extends StateNotifier<ServersState> {
   void addServer(ServerModel server);
@@ -204,7 +151,6 @@ class ServersProvider extends StateNotifier<ServersState> {
 ```
 
 ### SettingsProvider
-
 ```dart
 class SettingsProvider extends StateNotifier<SettingsState> {
   void toggleTheme();
@@ -214,59 +160,24 @@ class SettingsProvider extends StateNotifier<SettingsState> {
 }
 ```
 
-## VPN Protocol Parsers
+## Парсеры протоколов
 
-### VLESS Parser
-
-Парсит ссылки формата:
+### VLESS
 `vless://uuid@host:port?params#name`
 
-Поддерживаемые параметры:
-- `security` — tls, reality, none
-- `fp` — fingerprint (chrome, firefox, safari)
-- `pbk` — public key для REALITY
-- `sid` — short ID для REALITY
-- `sni` — Server Name Indication
-- `alpn` — ALPN protocol
-- `flow` — flow control
+Параметры: security, fp, pbk, sid, sni, alpn, flow
 
-### Trojan Parser
-
-Парсит ссылки формата:
+### Trojan
 `trojan://password@host:port?params#name`
 
-Поддерживаемые параметры:
-- `sni` — Server Name Indication
-- `alpn` — ALPN protocol
-- `allowInsecure` — разрешить небезопасные соединения
+Параметры: sni, alpn, allowInsecure
 
-### Shadowsocks Parser
-
-Парсит ссылки формата:
+### Shadowsocks
 `ss://base64(method:password)@host:port#name`
 
-Поддерживаемые методы шифрования:
-- aes-256-gcm
-- aes-128-gcm
-- chacha20-ietf-poly1305
-- xchacha20-ietf-poly1305
+Методы: aes-256-gcm, aes-128-gcm, chacha20-ietf-poly1305, xchacha20-ietf-poly1305
 
-### VMess Parser
-
-Парсит ссылки формата:
+### VMess
 `vmess://base64(json-config)`
 
-JSON-конфиг содержит:
-- `v` — версия
-- `ps` — название
-- `add` — адрес
-- `port` — порт
-- `id` — UUID
-- `aid` — alterId
-- `scy` — метод шифрования
-- `net` — сеть (ws, tcp, grpc)
-- `type` — тип маскировки
-- `host` — хост для WebSocket
-- `path` — путь для WebSocket
-- `tls` — TLS включён
-- `sni` — SNI
+JSON: v, ps, add, port, id, aid, scy, net, type, host, path, tls, sni

@@ -1,17 +1,15 @@
-# CI/CD Pipeline Documentation
+# Документация CI/CD-пайплайна
 
-MaxSpeed VPN uses GitHub Actions for continuous integration and continuous
-deployment. This document describes the complete build, test, and deploy
-pipeline.
+MaxSpeed VPN использует GitHub Actions для непрерывной интеграции и непрерывной доставки. Этот документ описывает полный пайплайн сборки, тестирования и развёртывания.
 
 ---
 
-## Pipeline Overview
+## Обзор пайплайна
 
 ```
 ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
-│  Lint &  │───▶│  Build   │───▶│  Test    │───▶│  Deploy  │
-│  Format  │    │  (Multi) │    │  (Multi) │    │  (Multi) │
+│  Линт &  │───▶│  Сборка  │───▶│  Тесты   │───▶│  Деплой  │
+│  Формат  │    │  (Multi) │    │  (Multi) │    │  (Multi) │
 └──────────┘    └──────────┘    └──────────┘    └──────────┘
 ```
 
@@ -19,157 +17,155 @@ pipeline.
 
 ## Workflows
 
-### 1. Main CI Workflow (`ci.yml`)
+### 1. Основной CI-воркфлоу (`ci.yml`)
 
-Triggered on: `push` to `main`, `develop`, and `pull_request` to `main`.
+Триггеры: `push` в `main`, `develop` и `pull_request` в `main`.
 
-**Jobs:**
+**Задачи:**
 
-#### Job: lint
-- Runs Dart/Flutter analyzer (`flutter analyze`)
-- Runs `dart format --set-exit-if-changed`
-- Checks for trailing whitespace and line length violations
-- Enforces `analysis_options.yaml` strict mode rules
-- Duration: ~2 minutes
+#### Задача: lint
+- Запускает анализатор Dart/Flutter (`flutter analyze`)
+- Запускает `dart format --set-exit-if-changed`
+- Проверяет наличие пробелов в конце строк и нарушений длины строк
+- Применяет строгие правила из `analysis_options.yaml`
+- Длительность: ~2 минуты
 
-#### Job: test
-- Unit test suite: `flutter test --coverage`
-- Widget test suite: `flutter test test/widget/`
-- Integration test suite: `flutter test integration_test/`
-- Uploads coverage report to Codecov
-- Minimum coverage threshold: 80%
-- Duration: ~8 minutes
+#### Задача: test
+- Набор модульных тестов: `flutter test --coverage`
+- Набор виджет-тестов: `flutter test test/widget/`
+- Набор интеграционных тестов: `flutter test integration_test/`
+- Загружает отчёт о покрытии в Codecov
+- Минимальный порог покрытия: 80%
+- Длительность: ~8 минут
 
-#### Job: build-android
-- Builds debug APK: `flutter build apk --debug`
-- Builds release APK: `flutter build apk --release`
-- Builds App Bundle: `flutter build appbundle`
-- Signs release artifacts with CI keystore
-- Uploads artifacts to GitHub Actions storage
-- Matrix strategy: latest stable Flutter SDK
-- Duration: ~12 minutes
+#### Задача: build-android
+- Собирает debug APK: `flutter build apk --debug`
+- Собирает release APK: `flutter build apk --release`
+- Собирает App Bundle: `flutter build appbundle`
+- Подписывает релизные артефакты CI-кейстором
+- Загружает артефакты в хранилище GitHub Actions
+- Матричная стратегия: последняя стабильная версия Flutter SDK
+- Длительность: ~12 минут
 
-#### Job: security-scan
-- Runs `dart pub audit` for dependency vulnerability scanning
-- Scans Android manifest for common misconfigurations
-- Checks for hardcoded secrets using `gitleaks`
-- Runs SAST scan on native code layers
-- Reports findings as PR annotations
-- Duration: ~5 minutes
-
----
-
-### 2. Release Workflow (`release.yml`)
-
-Triggered on: GitHub release creation or tag push (`v*`).
-
-**Jobs:**
-
-#### Job: build-release
-- Builds signed release APK and App Bundle
-- Uses release keystore from GitHub Secrets
-- Generates changelog from conventional commits
-- Matrix builds for Android (arm64, x86_64)
-- Duration: ~15 minutes
-
-#### Job: deploy-play-store
-- Uploads App Bundle to Google Play Internal Track
-- Uses Google Play Publishing API via GitHub Action
-- Auto-promotes from internal to production on approval
-- Requires `PLAY_STORE_SERVICE_ACCOUNT` secret
-- Duration: ~3 minutes (plus Play Store review time)
-
-#### Job: deploy-github
-- Attaches APK and App Bundle to GitHub Release
-- Includes SHA-256 checksums for all artifacts
-- Generates and attaches SBOM (Software Bill of Materials)
-- Duration: ~2 minutes
-
-#### Job: deploy-fdroid (conditional)
-- Builds reproducible APK for F-Droid inclusion
-- Triggered only on stable release tags
-- Duration: ~10 minutes
+#### Задача: security-scan
+- Запускает `dart pub audit` для сканирования уязвимостей зависимостей
+- Сканирует Android-манифест на наличие типичных ошибок конфигурации
+- Проверяет наличие захардкоженных секретов с помощью `gitleaks`
+- Запускает SAST-сканирование нативных слоёв кода
+- Отображает результаты как аннотации в PR
+- Длительность: ~5 минут
 
 ---
 
-### 3. PR Quality Gate (`pr-gate.yml`)
+### 2. Воркфлоу релизов (`release.yml`)
 
-Triggered on: `pull_request` synchronize and review events.
+Триггеры: создание релиза на GitHub или пуш тега (`v*`).
 
-- Runs all lint checks
-- Runs all unit and widget tests
-- Checks branch is up-to-date with base branch
-- Enforces conventional commit PR titles
-- Requires at least one reviewer approval
-- All checks must pass before merge is allowed
+**Задачи:**
+
+#### Задача: build-release
+- Собирает подписанные release APK и App Bundle
+- Использует релизный кейстор из GitHub Secrets
+- Генерирует changelog из конвенциональных коммитов
+- Матричная сборка для Android (arm64, x86_64)
+- Длительность: ~15 минут
+
+#### Задача: deploy-play-store
+- Загружает App Bundle в Google Play Internal Track
+- Использует Google Play Publishing API через GitHub Action
+- Автоматически продвигает из internal в production после одобрения
+- Требует секрет `PLAY_STORE_SERVICE_ACCOUNT`
+- Длительность: ~3 минуты (плюс время ревью Play Store)
+
+#### Задача: deploy-github
+- Прикрепляет APK и App Bundle к GitHub Release
+- Включает SHA-256 контрольные суммы для всех артефактов
+- Генерирует и прикрепляет SBOM (Software Bill of Materials)
+- Длительность: ~2 минуты
+
+#### Задача: deploy-fdroid (условная)
+- Собирает воспроизводимый APK для включения в F-Droid
+- Запускается только для тегов стабильных релизов
+- Длительность: ~10 минут
 
 ---
 
-## Required Secrets
+### 3. Воркфлоу качества PR (`pr-gate.yml`)
 
-Configure these in GitHub repository Settings > Secrets:
+Триггеры: события `pull_request` (синхронизация и ревью).
 
-| Secret Name                  | Purpose                          |
+- Запускает все проверки линтера
+- Запускает все модульные и виджет-тесты
+- Проверяет, что ветка обновлена относительно базовой ветки
+- Требует конвенциональные заголовки PR
+- Требует как минимум одно одобрение ревьюера
+- Все проверки должны пройти перед разрешением на слияние
+
+---
+
+## Необходимые секреты
+
+Настройте их в Settings > Secrets репозитория на GitHub:
+
+| Имя секрета | Назначение |
 |------------------------------|----------------------------------|
-| `CI_KEYSTORE_BASE64`         | Base64-encoded debug keystore    |
-| `CI_KEYSTORE_PASSWORD`       | Debug keystore password          |
-| `RELEASE_KEYSTORE_BASE64`    | Base64-encoded release keystore  |
-| `RELEASE_KEYSTORE_PASSWORD`  | Release keystore password        |
-| `KEY_ALIAS`                  | Key alias for signing            |
-| `KEY_PASSWORD`               | Key password for signing         |
-| `PLAY_STORE_SERVICE_ACCOUNT` | Google Play service account JSON |
-| `GITLEAKS_LICENSE`           | Gitleaks enterprise license key  |
-| `CODECOV_TOKEN`              | Codecov upload token             |
+| `CI_KEYSTORE_BASE64` | Base64-кодированный debug-кейстор |
+| `CI_KEYSTORE_PASSWORD` | Пароль debug-кейстора |
+| `RELEASE_KEYSTORE_BASE64` | Base64-кодированный релизный кейстор |
+| `RELEASE_KEYSTORE_PASSWORD` | Пароль релизного кейстора |
+| `KEY_ALIAS` | Алиас ключа для подписи |
+| `KEY_PASSWORD` | Пароль ключа для подписи |
+| `PLAY_STORE_SERVICE_ACCOUNT` | JSON сервисного аккаунта Google Play |
+| `GITLEAKS_LICENSE` | Лицензионный ключ Gitleaks enterprise |
+| `CODECOV_TOKEN` | Токен загрузки в Codecov |
 
 ---
 
-## Branching Strategy
+## Стратегия ветвления
 
-- `main` — production-ready, protected branch
-- `develop` — integration branch for features
-- `feature/*` — individual feature branches
-- `hotfix/*` — urgent production fixes
-- `release/*` — release preparation branches
+- `main` — production-ready, защищённая ветка
+- `develop` — интеграционная ветка для функций
+- `feature/*` — отдельные ветки функций
+- `hotfix/*` — срочные исправления в production
+- `release/*` — ветки подготовки релизов
 
 ---
 
-## Local CI Simulation
+## Локальная симуляция CI
 
-Run the full CI pipeline locally before pushing:
+Запустите полный CI-пайплайн локально перед пушем:
 
 ```bash
-# Lint
+# Линт
 flutter analyze --fatal-infos
 dart format --set-exit-if-changed lib/ test/
 
-# Test
+# Тесты
 flutter test --coverage --coverage-path=coverage/lcov.info
 
-# Build
+# Сборка
 flutter build apk --release
 flutter build appbundle --release
 ```
 
 ---
 
-## Monitoring & Notifications
+## Мониторинг и уведомления
 
-- Build status badges displayed in README.md
-- Slack/Discord notifications on `main` branch failures
-- Email alerts to maintainers on security scan findings
-- Weekly build health digest sent to team
+- Бейджи статуса сборки отображаются в README.md
+- Уведомления в Slack/Discord при сбоях в ветке `main`
+- Email-оповещения для мейнтейнеров при обнаружении проблем безопасности
+- Еженедельный дайджест состояния сборок отправляется команде
 
 ---
 
-## Troubleshooting
+## Устранение неполадок
 
-**Flutter SDK version mismatch**: The CI uses the version pinned in
-`.github/FLUTTER_VERSION`. Ensure local Flutter matches.
+**Несоответствие версии Flutter SDK**: CI использует версию, указанную в `.github/FLUTTER_VERSION`. Убедитесь, что локальная версия Flutter совпадает.
 
-**Keystore issues**: If signing fails, regenerate keystore and re-encode:
+**Проблемы с кейстором**: Если подпись не проходит, перегенерируйте кейстор и перекодируйте:
 ```bash
 base64 -w0 < keystore.jks > keystore.base64
 ```
 
-**Test flakiness**: Flaky tests are quarantined in `test/quarantine/`.
-File an issue if a test is intermittently failing.
+**Нестабильные тесты**: Нестабильные тесты изолированы в `test/quarantine/`. Создайте issue, если тест периодически падает.

@@ -1,107 +1,75 @@
-# Contributing to MaxSpeedVPN
+# Участие в разработке MaxSpeedVPN
 
-Thank you for your interest in contributing to MaxSpeedVPN! This document provides guidelines for contributing to the project.
+## Кодекс поведения
 
-## Code of Conduct
+- Уважительность и инклюзивность
+- Конструктивная обратная связь
+- Уважение к разным точкам зрения
 
-- Be respectful and inclusive
-- Focus on constructive feedback
-- Respect different viewpoints and experiences
+## Как помочь
 
-## How to Contribute
+### Сообщить об ошибке
+1. Проверьте, не сообщали ли уже
+2. Создайте issue с чётким заголовком и описанием
+3. Укажите шаги для воспроизведения
+4. Добавьте информацию об устройстве и версии приложения
+5. Приложите скриншоты или логи
 
-### Reporting Bugs
+### Предложить фичу
+1. Проверьте, не предлагали ли уже
+2. Создайте issue с use case и ожидаемым поведением
 
-1. Check if the bug has already been reported
-2. Create a new issue with a clear title and description
-3. Include steps to reproduce the bug
-4. Include your device info and app version
-5. Attach screenshots or logs if applicable
+### Pull Request
+1. Форкните репозиторий
+2. Создайте ветку: `git checkout -b feature/my-feature`
+3. Внесите изменения
+4. Напишите/обновите тесты
+5. `flutter test && flutter format . && flutter analyze`
+6. Коммитьте с понятными сообщениями
+7. Создайте pull request
 
-### Suggesting Features
+## Стандарты кода
 
-1. Check if the feature has already been suggested
-2. Create a new issue with a clear title and description
-3. Explain the use case and expected behavior
-4. Consider the impact on existing functionality
+- Dart Style Guide
+- `flutter format .` для форматирования
+- Осмысленные имена
+- Документация публичного API
+- Маленькие сфокусированные функции
+- `const` конструкторы где возможно
 
-### Pull Requests
+## Именование
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/my-feature`
-3. Make your changes
-4. Write or update tests
-5. Ensure all tests pass: `flutter test`
-6. Ensure code is formatted: `flutter format .`
-7. Ensure no analysis issues: `flutter analyze`
-8. Commit with clear messages
-9. Push to your fork
-10. Create a pull request
+- **Файлы**: `snake_case.dart`
+- **Классы**: `PascalCase`
+- **Функции**: `camelCase`
+- **Переменные**: `camelCase`
+- **Константы**: `camelCase` или `SCREAMING_SNAKE_CASE`
+- **Приватные**: `_сПодчёркиванием`
 
-## Development Setup
+## Тестирование
 
-1. Follow the [Setup Guide](SETUP.md) to set up your development environment
-2. Create a branch for your changes
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+- Unit-тесты для use cases
+- Widget-тесты для экранов
+- Интеграционные тесты для критических флоу
+- Цель: >80% покрытие
 
-## Coding Standards
-
-### Dart Code
-
-- Follow the [Dart Style Guide](https://dart.dev/effective-dart/style)
-- Use `flutter format .` to format code
-- Use meaningful variable and function names
-- Add documentation comments for public APIs
-- Keep functions small and focused
-- Use `const` constructors where possible
-
-### File Organization
+## Коммиты
 
 ```
-lib/
-  core/           # Core utilities, constants, errors, theme
-  data/           # Models, repositories, data sources
-  domain/         # Entities, use cases, repository interfaces
-  presentation/   # Screens, widgets, providers, theme
+feat: поддержка VLESS Reality
+fix: исправлен таймаут подключения
+docs: обновлена документация API
+refactor: упрощена логика парсинга
+test: добавлены тесты парсера подписок
 ```
 
-### Naming Conventions
+## Ревью
 
-- **Files**: `snake_case.dart`
-- **Classes**: `PascalCase`
-- **Functions**: `camelCase`
-- **Variables**: `camelCase`
-- **Constants**: `camelCase` (or `SCREAMING_SNAKE_CASE` for true constants)
-- **Private members**: `_prefixedWithUnderscore`
+1. Все изменения требуют минимум одного ревью
+2. Оперативно отвечайте на комментарии
+3. Держите PR маленькими и сфокусированными
+4. Ребейзите на main перед мержем
 
-### Testing
+## Лицензия
 
-- Write unit tests for all use cases
-- Write widget tests for all screens
-- Write integration tests for critical flows
-- Aim for >80% code coverage
-
-## Commit Messages
-
-Use clear, descriptive commit messages:
-
-```
-feat: add VLESS Reality support
-fix: resolve connection timeout issue
-docs: update API documentation
-refactor: simplify server parsing logic
-test: add tests for subscription parser
-```
-
-## Review Process
-
-1. All changes require at least one review
-2. Address review comments promptly
-3. Keep pull requests focused and small
-4. Rebase on main before merging
-
-## License
-
-By contributing to MaxSpeedVPN, you agree that your contributions will be licensed under the GPL-3.0 License.
+Вклад лицензируется под GPL-3.0.
