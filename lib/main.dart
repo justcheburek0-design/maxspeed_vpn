@@ -4,7 +4,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'core/theme/app_themes.dart';
 import 'core/deeplink/deep_link_handler.dart';
 import 'presentation/screens/home_screen.dart';
-import 'presentation/screens/servers_screen.dart';
 import 'presentation/screens/settings_screen.dart';
 import 'services/update_checker.dart';
 import 'services/vpn_service.dart';
@@ -131,7 +130,6 @@ class _MainScreenState extends State<MainScreen> {
     final theme = GlassTheme.of(context);
     final screens = <Widget>[
       HomeScreen(vpnService: _vpnService),
-      ServersScreen(vpnService: _vpnService),
       SettingsScreen(vpnService: _vpnService, onThemeChanged: widget.onThemeChanged),
     ];
 
@@ -185,8 +183,7 @@ class _MainScreenState extends State<MainScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               _navItem(0, Icons.home_rounded, 'Главная', theme),
-              _navItem(1, Icons.dns_rounded, 'Серверы', theme),
-              _navItem(2, Icons.settings_rounded, 'Настройки', theme),
+              _navItem(1, Icons.settings_rounded, 'Настройки', theme),
             ],
           ),
         ),
