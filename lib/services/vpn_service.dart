@@ -118,14 +118,25 @@ class VpnService {
 
       // Save config and start VPN (plugin handles VpnService.prepare internally)
       final config = SingboxConfigGenerator.generate(server);
+      _addLog(VpnLogLevel.info, 'Connecting to ${server.name} (${server.address}:${server.port})');
       await _singbox.saveConfig(config);
-      final started = await _singbox.startVPN();
+      
+      // startVPN may block waiting for system VPN permission dialog
+      final started = await _singbox.startVPN().timeout(
+        const Duration(seconds: 60),
+        onTimeout: () {
+          _addLog(VpnLogLevel.error, 'VPN start timed out after 60s');
+          return false;
+        },
+      );
 
       if (!started) {
         _state = VpnConnectionState.error;
         _activeServer = null;
         _stateController.add(_state);
-        _addLog(VpnLogLevel.error, 'Failed to start VPN');
+        _addLog(VpnLogLevel.error, 'Failed to start VPN - startVPN returned false');
+      } else {
+        _addLog(VpnLogLevel.info, 'VPN service start requested successfully');
       }
 
       return started;

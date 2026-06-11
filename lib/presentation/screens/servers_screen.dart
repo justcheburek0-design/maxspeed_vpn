@@ -430,7 +430,17 @@ class _ServersScreenState extends State<ServersScreen> {
   }
 
   void _connect(VpnServer server) {
-    widget.vpnService.connect(server);
-    Navigator.pop(context);
+    // Set active server and connect
+    widget.vpnService.connect(server).then((success) {
+      if (!success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Не удалось подключиться. Проверьте настройки.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    });
+    // Don't pop — this screen is inside IndexedStack, not a pushed route
   }
 }

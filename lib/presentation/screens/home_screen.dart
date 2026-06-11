@@ -372,14 +372,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _onToggle() {
-    if (_state == VpnConnectionState.connected) {
+    if (_state == VpnConnectionState.connected ||
+        _state == VpnConnectionState.connecting) {
       widget.vpnService.disconnect();
     } else {
-      // If we have an active server, connect directly
       if (widget.vpnService.activeServer != null) {
-        widget.vpnService.connect(widget.vpnService.activeServer!);
+        widget.vpnService.connect(widget.vpnService.activeServer!).then((success) {
+          if (!success && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Не удалось подключиться'),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+        });
       } else {
-        // No server selected — go pick one
         _showServerPicker();
       }
     }
@@ -530,8 +538,11 @@ class _ServerPickerSheetState extends State<_ServerPickerSheet> {
                     color: Colors.transparent,
                     child: InkWell(
                       onTap: () {
-                        widget.vpnService.connect(server);
-                        Navigator.pop(context);
+                        widget.vpnService.connect(server).then((success) {
+                          if (success && context.mounted) {
+                            Navigator.pop(context);
+                          }
+                        });
                       },
                       borderRadius: BorderRadius.circular(12),
                       child: Container(

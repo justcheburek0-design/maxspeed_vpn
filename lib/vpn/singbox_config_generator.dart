@@ -27,7 +27,6 @@ class SingboxConfigGenerator {
         'mtu': 1500,
         'address': ['172.19.0.1/30'],
         'auto_route': true,
-        'auto_redirect': true,
         'stack': 'system',
       },
     ];

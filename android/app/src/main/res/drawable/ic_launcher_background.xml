@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Base layer: blue to purple linear gradient -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:angle="135"
+                android:startColor="#4AB8FF"
+                android:centerColor="#3A4DFF"
+                android:endColor="#D35BFF"/>
+        </shape>
+    </item>
+    <!-- Overlay: radial glow from center to deepen the middle -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="radial"
+                android:gradientRadius="50%p"
+                android:centerX="0.5"
+                android:centerY="0.5"
+                android:startColor="#448A2EFF"
+                android:endColor="#008A2EFF"/>
+        </shape>
+    </item>
+</layer-list>
