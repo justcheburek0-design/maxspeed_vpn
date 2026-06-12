@@ -1,8 +1,9 @@
-import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../../core/theme/app_themes.dart';
 import '../../data/models/vpn_models.dart';
 import '../../services/vpn_service_interface.dart';
@@ -171,7 +172,10 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
             side: BorderSide(color: theme.outlineVariant),
           ),
           child: Column(children: [
-            _infoTile(theme, 'Версия', '1.0.0'),
+            FutureBuilder<String>(
+              future: PackageInfo.fromPlatform().then((p) => p.version),
+              builder: (ctx, snap) => _infoTile(theme, 'Версия', snap.data ?? '—'),
+            ),
             Divider(color: theme.outlineVariant, height: 1, indent: 16, endIndent: 16),
             _infoTile(theme, 'Протокол', 'VLESS / REALITY'),
             Divider(color: theme.outlineVariant, height: 1, indent: 16, endIndent: 16),
