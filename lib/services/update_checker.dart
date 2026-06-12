@@ -192,9 +192,8 @@ class _DownloadDialogState extends State<_DownloadDialog> {
       final total = response.contentLength ?? 0;
 
       // Download directly to app cache dir so FileProvider can access it
-      final cacheDir = await getCacheDir(); // from path_provider
-      cacheDir.createSync(recursive: true);
-      final file = File('${cacheDir.path}/maxspeed_vpn_v${widget.version}.apk');
+      final tempDir = await getTemporaryDirectory();
+      final file = File('${tempDir.path}/maxspeed_vpn_v${widget.version}.apk');
       // Clean up any previous download
       if (file.existsSync()) file.deleteSync();
       final sink = file.openWrite();
@@ -215,9 +214,14 @@ class _DownloadDialogState extends State<_DownloadDialog> {
       await sink.close();
       client.close();
 
-      setState(() { _status = 'Загрузка завершена!'; _done = true; });
+      setState(() { _status = 'Установка...'; _done = true; });
 
+      // Small delay so UI updates before install intent
+      await Future.delayed(const Duration(milliseconds: 500));
       await _openApk(file);
+
+      // Close dialog after successful install launch
+      if (mounted) Navigator.pop(context);
     } catch (e) {
       setState(() { _status = 'Ошибка: $e'; _error = true; });
     }
@@ -230,15 +234,26 @@ class _DownloadDialogState extends State<_DownloadDialog> {
       if (Platform.isAndroid) {
         final result = await _channel.invokeMethod('installApk', {'path': file.path});
         if (result != true) {
-          setState(() {
-            _status = 'Не удалось открыть установщик. Перезапустите приложение вручную.';
-          });
+          throw Exception('installApk returned false');
         }
       }
     } catch (e) {
-      setState(() {
-        _status = 'Ошибка установки: $e';
-      });
+      debugPrint('installApk failed: $e');
+      // Fallback: try opening the file directly
+      try {
+        final uri = Uri.file(file.path);
+        // This may not work without FileProvider, but worth trying
+        await _channel.invokeMethod('openFile', {'path': file.path});
+      } catch (e2) {
+        debugPrint('openFile fallback also failed: $e2');
+        // Last resort: show path to user
+        if (mounted) {
+          setState(() {
+            _status = 'Скачано: ${file.path}\nОткройте файл вручную';
+            _error = true;
+          });
+        }
+      }
     }
   }
 
