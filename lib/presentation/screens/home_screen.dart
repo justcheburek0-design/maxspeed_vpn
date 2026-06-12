@@ -15,6 +15,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   VpnConnectionState _state = VpnConnectionState.disconnected;
   VpnConnectionStats _stats = const VpnConnectionStats();
+  VpnServer? _selectedServer;
   late AnimationController _bgAnimController;
   late AnimationController _glowController;
   String _serverSearch = '';
@@ -23,6 +24,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _state = widget.vpnService.state;
+    _selectedServer = widget.vpnService.activeServer;
     _bgAnimController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 8),
@@ -32,7 +34,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
     widget.vpnService.stateStream.listen((s) {
-      if (mounted) setState(() => _state = s);
+      if (mounted) {
+        setState(() => _state = s);
+        // Sync selectedServer with activeServer on state change
+        if (s == VpnConnectionState.connected && widget.vpnService.activeServer != null) {
+          _selectedServer = widget.vpnService.activeServer;
+        }
+      }
     });
     widget.vpnService.statsStream.listen((s) {
       if (mounted) setState(() => _stats = s);
@@ -94,10 +102,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 _buildSubscriptionCard(context, theme),
                 const SizedBox(height: 24),
                 _buildPowerSection(context, theme),
-                const SizedBox(height: 32),
-                _buildStatsSection(context, theme),
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
                 _buildServersSection(context, theme),
+                const SizedBox(height: 24),
+                _buildStatsSection(context, theme),
               ],
             ),
           ),
@@ -487,7 +495,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _serverTile(BuildContext c, AppTheme theme, VpnServer server) {
-    final isActive = widget.vpnService.activeServer?.id == server.id;
+    final isActive = _selectedServer?.id == server.id;
+    final isConnected = widget.vpnService.activeServer?.id == server.id && 
+        _state == VpnConnectionState.connected;
     final pingColor = _pingColor(server.ping ?? 999);
 
     return Padding(
@@ -598,6 +608,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _connect(VpnServer server) {
+    setState(() => _selectedServer = server);
     widget.vpnService.connect(server).then((success) {
       if (!success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -685,8 +696,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         _state == VpnConnectionState.connecting) {
       widget.vpnService.disconnect();
     } else {
-      if (widget.vpnService.activeServer != null) {
-        widget.vpnService.connect(widget.vpnService.activeServer!).then((success) {
+      final server = widget.vpnService.activeServer ?? _selectedServer;
+      if (server != null) {
+        widget.vpnService.connect(server).then((success) {
           if (!success && mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -696,6 +708,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             );
           }
         });
+      } else {
+        // No server selected — pick first available
+        final servers = widget.vpnService.servers;
+        if (servers.isNotEmpty) {
+          _connect(servers.first);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Нет серверов — добавьте подписку в настройках'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
       }
     }
   }
