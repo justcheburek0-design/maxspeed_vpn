@@ -1,9 +1,12 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../../core/theme/app_themes.dart';
 import '../../data/models/vpn_models.dart';
 import '../../services/vpn_service_interface.dart';
+import '../../vpn/subscription_parser.dart';
 
 class SettingsScreen extends StatefulWidget {
   final VpnService vpnService;
@@ -522,20 +525,65 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
           ),
           FilledButton(
             onPressed: () async {
-              final url = controller.text.trim();
-              if (url.isNotEmpty) {
+              final input = controller.text.trim();
+              if (input.isEmpty) { Navigator.pop(ctx); return; }
+
+              // Show loading
+              Navigator.pop(ctx);
+
+              try {
+                String content;
+                if (input.startsWith('http://') || input.startsWith('https://')) {
+                  // Load subscription content from URL
+                  final response = await http.get(Uri.parse(input)).timeout(
+                    const Duration(seconds: 30),
+                  );
+                  if (response.statusCode == 200) {
+                    content = response.body;
+                  } else {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Ошибка загрузки: HTTP ${response.statusCode}')),
+                      );
+                    }
+                    return;
+                  }
+                } else {
+                  // Treat as raw subscription content or mxspd:// link
+                  content = input;
+                }
+
+                // Parse servers
+                final servers = SubscriptionParser.parse(content);
+
+                if (servers.isEmpty) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Не удалось распарсить подписку. Проверьте формат.')),
+                    );
+                  }
+                  return;
+                }
+
+                // Save to service
+                await widget.vpnService.updateServers(servers);
+
+                // Save URL for reference
                 final prefs = await SharedPreferences.getInstance();
-                await prefs.setString('subscription_url', url);
+                await prefs.setString('subscription_url', input);
                 await prefs.setString('subscription_name', 'MaxSpeedVPN');
-                if (ctx.mounted) Navigator.pop(ctx);
-                // Reload servers from subscription
+
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Подписка добавлена. Перезайдите в экран серверов.')),
+                    SnackBar(content: Text('Подписка добавлена: ${servers.length} серверов')),
                   );
                 }
-              } else {
-                Navigator.pop(ctx);
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Ошибка: $e')),
+                  );
+                }
               }
             },
             style: FilledButton.styleFrom(

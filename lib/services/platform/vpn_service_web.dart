@@ -17,6 +17,8 @@ class WebVpnService implements VpnService {
   VpnServer? _activeServer;
   VpnConnectionStats _stats = const VpnConnectionStats();
   final List<VpnLogEntry> _logs = [];
+  final List<VpnServer> _servers = [];
+  final _serversController = StreamController<List<VpnServer>>.broadcast();
 
   @override
   Stream<VpnConnectionState> get stateStream => _stateController.stream;
@@ -32,6 +34,10 @@ class WebVpnService implements VpnService {
   VpnConnectionStats get stats => _stats;
   @override
   List<VpnLogEntry> get logs => List.unmodifiable(_logs);
+  @override
+  List<VpnServer> get servers => List.unmodifiable(_servers);
+  @override
+  Stream<List<VpnServer>> get serversStream => _serversController.stream;
 
   WebVpnService() {
     _addLog(VpnLogLevel.info, 'MaxSpeedVPN Web');
@@ -81,9 +87,17 @@ class WebVpnService implements VpnService {
   }
 
   @override
+  Future<void> updateServers(List<VpnServer> servers) async {
+    _servers.clear();
+    _servers.addAll(servers);
+    _serversController.add(List.unmodifiable(_servers));
+  }
+
+  @override
   void dispose() {
     _stateController.close();
     _statsController.close();
     _logController.close();
+    _serversController.close();
   }
 }

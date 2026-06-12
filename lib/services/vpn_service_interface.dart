@@ -11,9 +11,12 @@ abstract class VpnService {
   VpnServer? get activeServer;
   VpnConnectionStats get stats;
   List<VpnLogEntry> get logs;
+  List<VpnServer> get servers;
+  Stream<List<VpnServer>> get serversStream;
 
   Future<bool> connect(VpnServer server);
   Future<bool> disconnect();
+  Future<void> updateServers(List<VpnServer> servers);
   Future<String> getStatus();
   Future<void> clearLogs();
 

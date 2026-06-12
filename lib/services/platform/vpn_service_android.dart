@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter_singbox_vpn/flutter_singbox.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models/vpn_models.dart';
 import '../../vpn/singbox_config_generator.dart';
+import '../../vpn/subscription_parser.dart';
 import '../vpn_service_interface.dart';
 
 /// Android-реализация VPN сервиса на базе flutter_singbox_vpn.
@@ -16,6 +19,8 @@ class AndroidVpnService implements VpnService {
   VpnServer? _activeServer;
   VpnConnectionStats _stats = const VpnConnectionStats();
   final List<VpnLogEntry> _logs = [];
+  final List<VpnServer> _servers = [];
+  final _serversController = StreamController<List<VpnServer>>.broadcast();
   int _accumulatedUpload = 0;
   int _accumulatedDownload = 0;
   DateTime? _connectTime;
@@ -35,6 +40,10 @@ class AndroidVpnService implements VpnService {
   VpnConnectionStats get stats => _stats;
   @override
   List<VpnLogEntry> get logs => List.unmodifiable(_logs);
+  @override
+  List<VpnServer> get servers => List.unmodifiable(_servers);
+  @override
+  Stream<List<VpnServer>> get serversStream => _serversController.stream;
 
   AndroidVpnService() {
     _singbox.onStatusChanged.listen((statusMap) {
@@ -70,6 +79,87 @@ class AndroidVpnService implements VpnService {
         _logController.add(entry);
       }
     });
+    _loadServers();
+  }
+
+  // ─── Server storage ───
+
+  Future<void> _loadServers() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final json = prefs.getString('servers');
+      if (json != null && json.isNotEmpty) {
+        final list = jsonDecode(json) as List;
+        _servers.clear();
+        for (final item in list) {
+          final s = _serverFromJson(item as Map<String, dynamic>);
+          if (s != null) _servers.add(s);
+        }
+        _serversController.add(List.unmodifiable(_servers));
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _saveServers() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = _servers.map((s) => _serverToJson(s)).toList();
+      await prefs.setString('servers', jsonEncode(list));
+    } catch (_) {}
+  }
+
+  Map<String, dynamic> _serverToJson(VpnServer s) => {
+    'id': s.id, 'name': s.name, 'address': s.address, 'port': s.port,
+    'protocol': s.protocol.name, 'security': s.security.name,
+    'uuid': s.uuid, 'sni': s.sni, 'fingerprint': s.fingerprint,
+    'publicKey': s.publicKey, 'shortId': s.shortId, 'path': s.path,
+    'host': s.host, 'alpn': s.alpn, 'flow': s.flow, 'mode': s.mode,
+    'rawConfig': s.rawConfig, 'isFavorite': s.isFavorite,
+    'ping': s.ping, 'country': s.country, 'flag': s.flag,
+  };
+
+  VpnServer? _serverFromJson(Map<String, dynamic> m) {
+    try {
+      return VpnServer(
+        id: m['id'] ?? '', name: m['name'] ?? '', address: m['address'] ?? '',
+        port: m['port'] ?? 443,
+        protocol: VpnProtocol.values.firstWhere((p) => p.name == m['protocol'], orElse: () => VpnProtocol.vless),
+        security: VpnSecurity.values.firstWhere((s) => s.name == m['security'], orElse: () => VpnSecurity.none),
+        uuid: m['uuid'], sni: m['sni'], fingerprint: m['fingerprint'],
+        publicKey: m['publicKey'], shortId: m['shortId'], path: m['path'],
+        host: m['host'], alpn: m['alpn'], flow: m['flow'], mode: m['mode'],
+        rawConfig: Map<String, dynamic>.from(m['rawConfig'] ?? {}),
+        isFavorite: m['isFavorite'] ?? false, ping: m['ping'],
+        country: m['country'], flag: m['flag'],
+      );
+    } catch (_) { return null; }
+  }
+
+  /// Загрузить сервера из подписки (вызывается из UI)
+  Future<void> loadSubscription(String url) async {
+    try {
+      String content;
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        // Для Android используем платформенный канал или http
+        // Пока ожидаем что контент уже загружен
+        return;
+      } else {
+        content = url;
+      }
+      final parsed = SubscriptionParser.parse(content);
+      _servers.clear();
+      _servers.addAll(parsed);
+      await _saveServers();
+      _serversController.add(List.unmodifiable(_servers));
+    } catch (_) {}
+  }
+
+  /// Заменить список серверов (после парсинга подписки)
+  Future<void> updateServers(List<VpnServer> newServers) async {
+    _servers.clear();
+    _servers.addAll(newServers);
+    await _saveServers();
+    _serversController.add(List.unmodifiable(_servers));
   }
 
   VpnLogLevel _parseLogLevel(String msg) {

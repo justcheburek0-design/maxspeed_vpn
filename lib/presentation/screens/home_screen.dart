@@ -37,6 +37,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     widget.vpnService.statsStream.listen((s) {
       if (mounted) setState(() => _stats = s);
     });
+    widget.vpnService.serversStream.listen((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -46,36 +49,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  List<VpnServer> get _demoServers => [
-    VpnServer(
-      id: 'demo1', name: 'Ютуб РФ', address: '1.2.3.4', port: 443,
-      protocol: VpnProtocol.vless, security: VpnSecurity.reality,
-      uuid: 'demo-uuid-1', sni: 'example.com', fingerprint: 'chrome',
-      publicKey: 'demo-pubkey', shortId: 'abcd1234',
-      mode: 'xhttp', path: '/xhttp', host: 'example.com',
-      country: 'RU', flag: '🇷🇺', rawConfig: {'link': 'vless://demo'},
-      ping: 45,
-    ),
-    VpnServer(
-      id: 'demo2', name: 'Россия', address: '5.6.7.8', port: 443,
-      protocol: VpnProtocol.vless, security: VpnSecurity.tls,
-      uuid: 'demo-uuid-2', sni: 'example2.com', fingerprint: 'chrome',
-      country: 'RU', flag: '🇷🇺', rawConfig: {'link': 'vless://demo2'},
-      ping: 120,
-    ),
-    VpnServer(
-      id: 'demo3', name: 'Германия', address: '9.10.11.12', port: 443,
-      protocol: VpnProtocol.vless, security: VpnSecurity.reality,
-      uuid: 'demo-uuid-3', sni: 'google.com', fingerprint: 'chrome',
-      publicKey: 'demo-pubkey-3', shortId: 'efgh5678',
-      mode: 'tcp', host: 'google.com',
-      country: 'DE', flag: '🇩🇪', rawConfig: {'link': 'vless://demo3'},
-      ping: 180,
-    ),
-  ];
-
   List<VpnServer> get _filteredServers {
-    final servers = _demoServers;
+    final servers = widget.vpnService.servers;
     if (_serverSearch.isEmpty) return servers;
     return servers.where((s) =>
       s.name.toLowerCase().contains(_serverSearch.toLowerCase()) ||
@@ -483,7 +458,30 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         ),
         // Server list
-        ...servers.map((server) => _serverTile(ctx, theme, server)),
+        if (servers.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.cloud_off_outlined, size: 48, color: theme.outline),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Нет серверов',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: theme.onSurfaceVariant),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Добавьте подписку в настройках',
+                    style: TextStyle(fontSize: 13, color: theme.outline),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          ...servers.map((server) => _serverTile(ctx, theme, server)),
       ],
     );
   }
