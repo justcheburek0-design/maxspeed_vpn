@@ -90,8 +90,10 @@ class UpdateChecker {
   }
 
   static int _compareVersions(String a, String b) {
-    final aParts = a.split('.').map((e) => int.tryParse(e) ?? 0).toList();
-    final bParts = b.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+    // Strip build metadata (+N) for comparison: "1.3.1+5" → "1.3.1"
+    String strip(String v) => v.contains('+') ? v.substring(0, v.indexOf('+')) : v;
+    final aParts = strip(a).split('.').map((e) => int.tryParse(e) ?? 0).toList();
+    final bParts = strip(b).split('.').map((e) => int.tryParse(e) ?? 0).toList();
     final maxLen = aParts.length > bParts.length ? aParts.length : bParts.length;
     while (aParts.length < maxLen) aParts.add(0);
     while (bParts.length < maxLen) bParts.add(0);
