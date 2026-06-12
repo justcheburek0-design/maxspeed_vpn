@@ -31,6 +31,15 @@ android {
         }
     }
 
+    splits {
+        abi {
+            isEnable = false
+        }
+        density {
+            isEnable = false
+        }
+    }
+
     packaging {
         jniLibs {
             useLegacyPackaging = true
