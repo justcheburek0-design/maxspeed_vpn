@@ -347,47 +347,27 @@ class _MainScreenState extends State<MainScreen> {
             margin: const EdgeInsets.all(6),
             padding: const EdgeInsets.symmetric(vertical: 8),
             decoration: BoxDecoration(
-              color: isSelected ? theme.primary.withValues(alpha: 0.15) : Colors.transparent,
-              borderRadius: BorderRadius.circular(28),
-              border: isSelected
-                  ? Border.all(color: theme.primary.withValues(alpha: 0.3), width: 1)
-                  : null,
-              boxShadow: isSelected
-                  ? [
-                      BoxShadow(
-                        color: theme.primary.withValues(alpha: 0.15),
-                        blurRadius: 12,
-                        spreadRadius: 0,
-                      ),
-                    ]
-                  : null,
+              color: isSelected
+                  ? theme.primary.withValues(alpha: 0.1)
+                  : Colors.transparent,
+              borderRadius: const BorderRadius.all(Radius.circular(28)),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeOutCubic,
-                  padding: EdgeInsets.all(isSelected ? 6 : 4),
-                  decoration: BoxDecoration(
-                    color: isSelected ? theme.primary.withValues(alpha: 0.2) : Colors.transparent,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(
-                    icon,
-                    size: isSelected ? 24 : 22,
-                    color: isSelected ? activeColor : inactiveColor,
-                  ),
+                Icon(
+                  icon,
+                  size: 22,
+                  color: isSelected ? activeColor : inactiveColor,
                 ),
                 const SizedBox(height: 2),
                 Text(
                   label,
                   style: TextStyle(
                     fontSize: 10,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
+                    fontWeight: FontWeight.w400,
                     color: isSelected ? activeColor : inactiveColor,
-                    letterSpacing: isSelected ? 0.3 : 0,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
