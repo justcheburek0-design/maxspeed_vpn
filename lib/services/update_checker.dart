@@ -1,10 +1,11 @@
 import 'dart:convert';
-import 'dart:io' show Platform, Directory, File;
+import 'dart:io' show Platform, File;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:path_provider/path_provider.dart';
 import '../core/theme/app_themes.dart';
 
 class UpdateInfo {
@@ -190,9 +191,12 @@ class _DownloadDialogState extends State<_DownloadDialog> {
 
       final total = response.contentLength ?? 0;
 
-      // Use a temp directory that doesn't require path_provider on all platforms
-      final tempDir = Directory.systemTemp;
-      final file = File('${tempDir.path}/maxspeed_vpn_v${widget.version}.apk');
+      // Download directly to app cache dir so FileProvider can access it
+      final cacheDir = await getCacheDir(); // from path_provider
+      cacheDir.createSync(recursive: true);
+      final file = File('${cacheDir.path}/maxspeed_vpn_v${widget.version}.apk');
+      // Clean up any previous download
+      if (file.existsSync()) file.deleteSync();
       final sink = file.openWrite();
 
       int received = 0;
@@ -213,7 +217,7 @@ class _DownloadDialogState extends State<_DownloadDialog> {
 
       setState(() { _status = 'Загрузка завершена!'; _done = true; });
 
-      await _openInstaller(file);
+      await _openApk(file);
     } catch (e) {
       setState(() { _status = 'Ошибка: $e'; _error = true; });
     }
@@ -221,25 +225,19 @@ class _DownloadDialogState extends State<_DownloadDialog> {
 
   static const _channel = MethodChannel('ru.maxspeed.maxspeed_vpn/installer');
 
-  Future<void> _openInstaller(File file) async {
+  Future<void> _openApk(File file) async {
     try {
       if (Platform.isAndroid) {
-        Directory? downloadDir;
-        downloadDir = Directory('/storage/emulated/0/Download');
-        if (!downloadDir.existsSync()) downloadDir.createSync(recursive: true);
-        final destFile = File('${downloadDir.path}/maxspeed_vpn_update.apk');
-        await file.copy(destFile.path);
-
-        final result = await _channel.invokeMethod('installApk', {'path': destFile.path});
+        final result = await _channel.invokeMethod('installApk', {'path': file.path});
         if (result != true) {
           setState(() {
-            _status = 'Откройте файл вручную:\n${destFile.path}';
+            _status = 'Не удалось открыть установщик. Перезапустите приложение вручную.';
           });
         }
       }
     } catch (e) {
       setState(() {
-        _status = 'Установите вручную:\n/file ${file.path}';
+        _status = 'Ошибка установки: $e';
       });
     }
   }
