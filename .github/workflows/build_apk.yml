@@ -40,7 +40,7 @@ jobs:
       - name: Build APK
         run: |
           flutter clean
-          flutter build apk --release --android-skip-build-dependency-validation --no-tree-shake-icons
+          flutter build apk --release --no-tree-shake-icons
         env:
           GRADLE_OPTS: "-Dorg.gradle.vfs.watch=false -Dorg.gradle.daemon=false -Dorg.gradle.configuration-cache=false"
           JAVA_TOOL_OPTIONS: "-Dorg.gradle.vfs.watch=false"
