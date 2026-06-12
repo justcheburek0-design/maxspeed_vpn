@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_themes.dart';
 import '../../data/models/vpn_models.dart';
 import '../../services/vpn_service_interface.dart';
@@ -122,7 +123,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'MaxSpeedVPN',
+              AppConstants.appName,
               style: TextStyle(
                 fontSize: 26,
                 fontWeight: FontWeight.bold,
@@ -193,10 +194,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildSubscriptionCard(BuildContext ctx, AppTheme theme) {
-    final subName = 'MaxSpeedVPN';
-    final daysLeft = 23;
-    final totalGB = 100.0;
-    final usedGB = 37.2;
+    final subName = AppConstants.Subscription.defaultName;
+    final daysLeft = AppConstants.Subscription.defaultDaysLeft;
+    final totalGB = AppConstants.Subscription.defaultTotalGB;
+    final usedGB = AppConstants.Subscription.defaultUsedGB;
     final progress = (usedGB / totalGB).clamp(0.0, 1.0);
 
     return Container(
@@ -243,7 +244,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
               ),
               Text(
-                'by envywook',
+                AppConstants.Subscription.creditLine,
                 style: TextStyle(
                   fontSize: 10,
                   color: theme.outline,

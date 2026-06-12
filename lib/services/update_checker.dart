@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
+import '../core/constants/app_constants.dart';
 import '../core/theme/app_themes.dart';
 
 class UpdateInfo {
@@ -23,8 +24,7 @@ class UpdateInfo {
 }
 
 class UpdateChecker {
-  static const String _repoApiUrl =
-      'https://api.github.com/repos/justcheburek0-design/maxspeed_vpn/releases/latest';
+  static const String _repoApiUrl = AppConstants.githubRepoApi;
 
   /// Проверяет наличие обновления.
   /// На web всегда возвращает null (обновление через перезагрузку страницы).

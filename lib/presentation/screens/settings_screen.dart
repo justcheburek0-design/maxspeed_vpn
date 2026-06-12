@@ -4,6 +4,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_themes.dart';
 import '../../data/models/vpn_models.dart';
 import '../../services/vpn_service_interface.dart';
@@ -177,9 +178,9 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
               builder: (ctx, snap) => _infoTile(theme, 'Версия', snap.data ?? '—'),
             ),
             Divider(color: theme.outlineVariant, height: 1, indent: 16, endIndent: 16),
-            _infoTile(theme, 'Протокол', 'VLESS / REALITY'),
+            _infoTile(theme, 'Протокол', AppConstants.Settings.protocolDisplay),
             Divider(color: theme.outlineVariant, height: 1, indent: 16, endIndent: 16),
-            _infoTile(theme, 'Engine', 'sing-box v1.13'),
+            _infoTile(theme, 'Engine', AppConstants.Settings.engineDisplay),
           ]),
         ),
       ],
@@ -575,7 +576,7 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
                 // Save URL for reference
                 final prefs = await SharedPreferences.getInstance();
                 await prefs.setString('subscription_url', input);
-                await prefs.setString('subscription_name', 'MaxSpeedVPN');
+                await prefs.setString('subscription_name', AppConstants.Subscription.defaultName);
 
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(

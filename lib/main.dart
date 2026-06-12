@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'core/constants/app_constants.dart';
 import 'core/theme/app_themes.dart';
 import 'core/deeplink/deep_link_handler.dart';
 import 'presentation/screens/home_screen.dart';
@@ -52,7 +53,7 @@ class _MaxSpeedVpnAppState extends State<MaxSpeedVpnApp> {
     return GlassTheme(
       theme: appTheme,
       child: MaterialApp(
-        title: 'MaxSpeedVPN',
+        title: AppConstants.appName,
         debugShowCheckedModeBanner: false,
         theme: appTheme.themeData,
         home: MainScreen(
@@ -183,7 +184,7 @@ class _MainScreenState extends State<MainScreen> {
                   Icon(Icons.shield_outlined, color: theme.primary, size: 28),
                   const SizedBox(width: 10),
                   Text(
-                    'MaxSpeedVPN',
+                    AppConstants.appName,
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
