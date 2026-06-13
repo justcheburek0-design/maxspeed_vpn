@@ -5,7 +5,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_themes.dart';
 import '../../data/models/vpn_models.dart';
 import '../../services/vpn_service_interface.dart';
-import '../../services/update_checker_native.dart';
+import '../../services/update_manager_export.dart';
 import '../widgets/power_button.dart';
 
 class HomeScreen extends StatefulWidget {

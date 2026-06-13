@@ -9,7 +9,7 @@ import 'presentation/screens/home_screen.dart';
 import 'presentation/screens/settings_screen.dart';
 import 'services/vpn_service_factory.dart';
 import 'services/vpn_service_interface.dart';
-import 'services/update_checker_native.dart';
+import 'services/update_manager_export.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();

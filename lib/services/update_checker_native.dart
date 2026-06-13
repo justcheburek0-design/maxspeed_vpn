@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io' show Platform, File;
+import 'dart:io' show Directory, File, FileMode, Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -310,8 +310,8 @@ class UpdateManager {
   }
 
   Future<void> _installApk(BuildContext context, File file) async {
+    const channel = MethodChannel('ru.maxspeed.maxspeed_vpn/installer');
     try {
-      const channel = MethodChannel('ru.maxspeed.maxspeed_vpn/installer');
       final result = await channel.invokeMethod('installApk', {'path': file.path});
       if (result != true) throw Exception('installApk returned false');
     } catch (e) {
