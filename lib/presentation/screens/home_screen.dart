@@ -566,29 +566,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _onWebExportConfig(VpnServer server) {
-    // For web: use WebVpnService.copyConfigToClipboard (singbox JSON)
-    // For native: copy share link
-    if (kIsWeb) {
-      try {
-        // Check if the service has copyConfigToClipboard (web only)
-        final service = widget.vpnService;
-        final config = service.getShareText(server);
-        Clipboard.setData(ClipboardData(text: config));
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Конфиг "${server.name}" скопирован!'),
-            duration: const Duration(seconds: 2),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      } catch (_) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Ошибка копирования конфига')),
-        );
-      }
-    } else {
-      _onCopyConfig(server);
-    }
+    final link = server.rawLink.isNotEmpty
+        ? server.rawLink
+        : '${server.protocol.displayName.toLowerCase()}://${server.address}:${server.port}';
+    Clipboard.setData(ClipboardData(text: link));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Конфиг "${server.name}" скопирован!'),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   void _onAutoReload() {
