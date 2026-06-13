@@ -126,29 +126,23 @@ jobs:
       - name: Enable Windows desktop
         run: flutter config --enable-windows-desktop
 
-      - name: Setup MSVC
-        uses: ilammy/msvc-dev-cmd@v1
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
         with:
-          arch: x64
-          toolset: 14.40
+          msbuild-architecture: x64
 
-      - name: Verify MSVC
-        shell: cmd
-        run: |
-          cl.exe
-          cmake --version
-          ninja --version
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
 
       - name: Build Windows
-        shell: cmd
         run: |
           flutter build windows --release --no-tree-shake-icons
-          echo "=== Build output ==="
-          dir /s /b build\windows\*.exe 2>nul
-          dir /s /b build\windows\*.dll 2>nul
-          dir /s /b build\windows\runner\*.exe 2>nul
-          echo "=== Full tree ==="
-          dir /s /b build\windows\
+          Write-Output "=== .exe files ==="
+          Get-ChildItem -Recurse build\windows\ -Filter *.exe | ForEach-Object { $_.FullName }
+          Write-Output "=== .dll files ==="
+          Get-ChildItem -Recurse build\windows\ -Filter *.dll | Select-Object -First 10 ForEach-Object { $_.FullName }
+          Write-Output "=== Full tree ==="
+          Get-ChildItem -Recurse build\windows\ | Select-Object FullName, Length | Format-Table -AutoSize
 
       - name: Package as zip
         shell: cmd
@@ -184,7 +178,7 @@ jobs:
 
   # ─── macOS Desktop ─────────────────────────────
   build-macos:
-    runs-on: macos-13
+    runs-on: macos-latest
     timeout-minutes: 45
 
     steps:
