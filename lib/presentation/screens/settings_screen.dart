@@ -25,6 +25,23 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
   bool _loadingApps = false;
   String _appSearchQuery = '';
   late TabController _tabController;
+  bool _searchEnabled = false;
+  String _pingerType = 'tcp';
+  String _pingerUrl = 'https://www.gstatic.com/generate_204';
+  int _pingerTimeout = 3;
+
+  static const List<String> _pingerTypes = ['tcp', 'http_get', 'http_head', 'icmp'];
+  static const Map<String, String> _pingerTypeLabels = {
+    'tcp': 'TCP Connect',
+    'http_get': 'HTTP GET',
+    'http_head': 'HTTP HEAD',
+    'icmp': 'ICMP Ping',
+  };
+  static const Map<String, String> _pingerPresets = {
+    'Google': 'https://www.gstatic.com/generate_204',
+    'Cloudflare': 'https://cp.cloudflare.com/generate_204',
+    'Apple': 'https://captive.apple.com/hotspot-detect.html',
+  };
 
   @override
   void initState() {
@@ -42,7 +59,13 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
 
   Future<void> _loadPrefs() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() => _selectedTheme = prefs.getString('theme') ?? 'incy');
+    setState(() {
+      _selectedTheme = prefs.getString('theme') ?? 'incy';
+      _searchEnabled = prefs.getBool('search_enabled') ?? false;
+      _pingerType = prefs.getString('pinger_type') ?? 'tcp';
+      _pingerUrl = prefs.getString('pinger_url') ?? 'https://www.gstatic.com/generate_204';
+      _pingerTimeout = prefs.getInt('pinger_timeout') ?? 3;
+    });
   }
 
   Future<void> _loadApps() async {
@@ -162,6 +185,134 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
             _switchTile(theme, 'Reconnect при обрыве', true, (v) {}),
             Divider(color: theme.outlineVariant, height: 1, indent: 16, endIndent: 16),
             _switchTile(theme, 'Уведомления', true, (v) {}),
+          ]),
+        ),
+        const SizedBox(height: 20),
+        _sectionTitle(theme, 'ПОИСК'),
+        Card(
+          elevation: 0,
+          color: theme.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: theme.outlineVariant),
+          ),
+          child: SwitchListTile(
+            value: _searchEnabled,
+            onChanged: (v) async {
+              setState(() => _searchEnabled = v);
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setBool('search_enabled', v);
+            },
+            title: Text('Показать поисковик серверов', style: TextStyle(color: theme.onSurface, fontSize: 14)),
+            subtitle: Text(
+              'По умолчанию скрыт',
+              style: TextStyle(fontSize: 12, color: theme.onSurfaceVariant),
+            ),
+            activeColor: theme.primary,
+          ),
+        ),
+        const SizedBox(height: 20),
+        _sectionTitle(theme, 'ПИНГЕР'),
+        Card(
+          elevation: 0,
+          color: theme.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: theme.outlineVariant),
+          ),
+          child: Column(children: [
+            ListTile(
+              title: Text('Тип пинга', style: TextStyle(color: theme.onSurface, fontSize: 14)),
+              subtitle: Text(
+                _pingerTypeLabels[_pingerType] ?? _pingerType,
+                style: TextStyle(fontSize: 12, color: theme.onSurfaceVariant),
+              ),
+              trailing: DropdownButton<String>(
+                value: _pingerType,
+                underline: const SizedBox(),
+                dropdownColor: theme.surface,
+                style: TextStyle(color: theme.onSurface, fontSize: 13),
+                items: _pingerTypes.map((t) => DropdownMenuItem(
+                  value: t,
+                  child: Text(_pingerTypeLabels[t] ?? t),
+                )).toList(),
+                onChanged: (v) async {
+                  if (v == null) return;
+                  setState(() => _pingerType = v);
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setString('pinger_type', v);
+                },
+              ),
+            ),
+            Divider(color: theme.outlineVariant, height: 1, indent: 16, endIndent: 16),
+            ListTile(
+              title: Text('URL для пинга', style: TextStyle(color: theme.onSurface, fontSize: 14)),
+              subtitle: Text(
+                _pingerUrl,
+                style: TextStyle(fontSize: 11, color: theme.onSurfaceVariant),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              trailing: SizedBox(
+                width: 120,
+                child: DropdownButton<String>(
+                  value: _pingerPresets.containsValue(_pingerUrl) ? _pingerPresets.entries.firstWhere((e) => e.value == _pingerUrl).key : null,
+                  underline: const SizedBox(),
+                  dropdownColor: theme.surface,
+                  isExpanded: true,
+                  hint: Text('Пресет', style: TextStyle(color: theme.onSurfaceVariant, fontSize: 12)),
+                  style: TextStyle(color: theme.onSurface, fontSize: 13),
+                  items: [
+                    ..._pingerPresets.entries.map((e) => DropdownMenuItem(
+                      value: e.key,
+                      child: Text(e.key, style: const TextStyle(fontSize: 12)),
+                    )),
+                    DropdownMenuItem(
+                      value: '__custom__',
+                      child: Text('Свой...', style: TextStyle(fontSize: 12, color: theme.primary)),
+                    ),
+                  ],
+                  onChanged: (v) async {
+                    if (v == '__custom__') {
+                      _showCustomUrlDialog();
+                    } else if (v != null && _pingerPresets.containsKey(v)) {
+                      setState(() => _pingerUrl = _pingerPresets[v]!);
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setString('pinger_url', _pingerUrl);
+                    }
+                  },
+                ),
+              ),
+            ),
+            Divider(color: theme.outlineVariant, height: 1, indent: 16, endIndent: 16),
+            ListTile(
+              title: Text('Таймаут (сек)', style: TextStyle(color: theme.onSurface, fontSize: 14)),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: Icon(Icons.remove_circle_outline, color: theme.primary, size: 20),
+                    onPressed: _pingerTimeout > 1 ? () async {
+                      setState(() => _pingerTimeout--);
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setInt('pinger_timeout', _pingerTimeout);
+                    } : null,
+                  ),
+                  Text(
+                    '$_pingerTimeout',
+                    style: TextStyle(color: theme.onSurface, fontWeight: FontWeight.w600, fontSize: 16),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.add_circle_outline, color: theme.primary, size: 20),
+                    onPressed: _pingerTimeout < 30 ? () async {
+                      setState(() => _pingerTimeout++);
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setInt('pinger_timeout', _pingerTimeout);
+                    } : null,
+                  ),
+                ],
+              ),
+            ),
           ]),
         ),
         const SizedBox(height: 20),
@@ -691,5 +842,61 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
         ],
       ),
     );
+  }
+
+  void _showCustomUrlDialog() {
+    final theme = GlassTheme.of(context);
+    final ctrl = TextEditingController(text: _pingerUrl);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: theme.surface,
+        title: Text('URL для пинга', style: TextStyle(color: theme.onSurface)),
+        content: TextField(
+          controller: ctrl,
+          style: TextStyle(color: theme.onSurface),
+          decoration: InputDecoration(
+            hintText: 'https://...',
+            hintStyle: TextStyle(color: theme.onSurfaceVariant),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Отмена', style: TextStyle(color: theme.onSurfaceVariant)),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final url = ctrl.text.trim();
+              if (url.isNotEmpty) {
+                setState(() => _pingerUrl = url);
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setString('pinger_url', url);
+              }
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            style: FilledButton.styleFrom(backgroundColor: theme.primary),
+            child: const Text('Сохранить'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Static helper to check if search is enabled
+  static Future<bool> isSearchEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('search_enabled') ?? false;
+  }
+
+  /// Static helper to get pinger config
+  static Future<Map<String, dynamic>> getPingerConfig() async {
+    final prefs = await SharedPreferences.getInstance();
+    return {
+      'type': prefs.getString('pinger_type') ?? 'tcp',
+      'url': prefs.getString('pinger_url') ?? 'https://www.gstatic.com/generate_204',
+      'timeout': prefs.getInt('pinger_timeout') ?? 3,
+    };
   }
 }

@@ -36,7 +36,20 @@ class SubscriptionParser {
       if (server != null) {
         final flag = CountryFlagUtil.extractFlag(server.name);
         final cleanName = flag != null ? CountryFlagUtil.stripFlag(server.name) : server.name;
-        servers.add(server.copyWith(flag: flag, name: cleanName));
+        // Extract description: if name contains " | " or " — ", take the part after it
+        String? description;
+        String finalName = cleanName;
+        final descSeparators = [' | ', ' — ', ' - ', ' :: '];
+        for (final sep in descSeparators) {
+          final idx = cleanName.indexOf(sep);
+          if (idx > 0 && idx < cleanName.length - 3) {
+            description = cleanName.substring(idx + sep.length).trim();
+            finalName = cleanName.substring(0, idx).trim();
+            if (description.isEmpty) description = null;
+            break;
+          }
+        }
+        servers.add(server.copyWith(flag: flag, name: finalName, description: description));
       }
     }
     return servers;

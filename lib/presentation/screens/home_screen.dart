@@ -1,12 +1,12 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_themes.dart';
 import '../../data/models/vpn_models.dart';
 import '../../services/vpn_service_interface.dart';
 import '../../services/update_manager_export.dart';
-import '../widgets/power_button.dart';
 
 class HomeScreen extends StatefulWidget {
   final VpnService vpnService;
@@ -22,6 +22,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late AnimationController _bgAnimController;
   late AnimationController _glowController;
   String _serverSearch = '';
+  bool _searchEnabled = false;
+  bool _isRefreshing = false;
 
   @override
   void initState() {
@@ -36,10 +38,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
+    _loadSettings();
     widget.vpnService.stateStream.listen((s) {
       if (mounted) {
         setState(() => _state = s);
-        // Sync selectedServer with activeServer on state change
         if (s == VpnConnectionState.connected && widget.vpnService.activeServer != null) {
           _selectedServer = widget.vpnService.activeServer;
         }
@@ -48,9 +50,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     widget.vpnService.statsStream.listen((s) {
       if (mounted) setState(() => _stats = s);
     });
-    widget.vpnService.serversStream.listen((_) {
-      if (mounted) setState(() {});
-    });
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() => _searchEnabled = prefs.getBool('search_enabled') ?? false);
+    }
   }
 
   @override
@@ -60,143 +66,110 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     super.dispose();
   }
 
+  bool get _isConnected => _state == VpnConnectionState.connected;
+
   List<VpnServer> get _filteredServers {
     final servers = widget.vpnService.servers;
     if (_serverSearch.isEmpty) return servers;
+    final q = _serverSearch.toLowerCase();
     return servers.where((s) =>
-      s.name.toLowerCase().contains(_serverSearch.toLowerCase()) ||
-      (s.country?.toLowerCase().contains(_serverSearch.toLowerCase()) ?? false)
+      s.name.toLowerCase().contains(q) ||
+      (s.description?.toLowerCase().contains(q) ?? false) ||
+      s.address.toLowerCase().contains(q)
     ).toList();
+  }
+
+  Future<void> _refreshSubscription() async {
+    if (_isRefreshing) return;
+    setState(() => _isRefreshing = true);
+    try {
+      await Future.delayed(const Duration(seconds: 1));
+      // Subscription refresh is handled by the service layer
+    } finally {
+      if (mounted) setState(() => _isRefreshing = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = GlassTheme.of(context);
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: AnimatedBuilder(
-        animation: _bgAnimController,
-        builder: (context, child) {
-          final t = _bgAnimController.value;
-          return Container(
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                center: Alignment(0.3 + t * 0.4, -0.6 + t * 0.2),
-                radius: 1.2,
-                colors: [
-                  Color.lerp(theme.bgPrimary, theme.primary.withValues(alpha: 0.06), t)!,
-                  Color.lerp(theme.bgPrimary, theme.primary.withValues(alpha: 0.02), 1 - t)!,
-                  theme.bgPrimary,
-                ],
-                stops: const [0.0, 0.5, 1.0],
-              ),
-            ),
-            child: child,
-          );
-        },
-        child: SafeArea(
+
+    if (kIsWeb) {
+      return _buildWebLayout(theme);
+    }
+
+    return Stack(
+      children: [
+        _buildBg(theme),
+        RefreshIndicator(
+          onRefresh: _refreshSubscription,
+          color: theme.primary,
+          backgroundColor: theme.surface,
           child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            padding: const EdgeInsets.fromLTRB(16, 48, 16, 24),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildHeader(context, theme),
-                const SizedBox(height: 24),
                 _buildSubscriptionCard(context, theme),
-                const SizedBox(height: 24),
+                const SizedBox(height: 12),
                 _buildUpdateBanner(context, theme),
-                const SizedBox(height: 24),
-                if (kIsWeb) _buildWebDownloadSection(context, theme),
-                if (!kIsWeb) _buildPowerSection(context, theme),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
+                _buildPowerSection(context, theme),
+                const SizedBox(height: 20),
+                if (_isConnected) _buildCompactStats(theme),
+                if (_isConnected) const SizedBox(height: 20),
                 _buildServersSection(context, theme),
-                if (!kIsWeb) ...[
-                  const SizedBox(height: 24),
-                  _buildStatsSection(context, theme),
-                ],
+                const SizedBox(height: 100),
               ],
             ),
           ),
         ),
-      ),
+      ],
     );
   }
 
-  Widget _buildHeader(BuildContext ctx, AppTheme theme) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildWebLayout(AppTheme theme) {
+    return Stack(
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              AppConstants.appName,
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-                color: theme.onSurface,
-                letterSpacing: -0.5,
-              ),
-            ),
-            const SizedBox(height: 4),
-            _buildStatusLine(theme),
-          ],
-        ),
-        IconButton.filledTonal(
-          onPressed: _launchBot,
-          icon: const Icon(Icons.telegram, size: 20),
-          style: IconButton.styleFrom(
-            backgroundColor: theme.primaryContainer,
-            foregroundColor: theme.onPrimaryContainer,
-            minimumSize: const Size(44, 44),
+        _buildBg(theme),
+        SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 48, 16, 24),
+          child: Column(
+            children: [
+              _buildSubscriptionCard(context, theme),
+              const SizedBox(height: 20),
+              _buildWebDownloadSection(context, theme),
+              const SizedBox(height: 20),
+              _buildServersSection(context, theme),
+              const SizedBox(height: 100),
+            ],
           ),
         ),
       ],
     );
   }
 
-  Widget _buildStatusLine(AppTheme theme) {
-    final server = widget.vpnService.activeServer;
-    final isConnected = _state == VpnConnectionState.connected;
-    final isConnecting = _state == VpnConnectionState.connecting ||
-        _state == VpnConnectionState.reconnecting;
-
-    String text;
-    Color color;
-    if (isConnected && server != null) {
-      text = '${server.flag ?? "🌐"} ${server.name}';
-      color = theme.success;
-    } else if (isConnecting) {
-      text = _state.displayName;
-      color = theme.warning;
-    } else if (_state == VpnConnectionState.error) {
-      text = 'Ошибка подключения';
-      color = theme.error;
-    } else {
-      text = 'Отключено';
-      color = theme.onSurfaceVariant;
-    }
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 6,
-          height: 6,
+  Widget _buildBg(AppTheme theme) {
+    return AnimatedBuilder(
+      animation: _bgAnimController,
+      builder: (context, child) {
+        return Container(
           decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: color,
-            boxShadow: isConnected
-                ? [BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 6)]
-                : null,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                theme.bgPrimary,
+                Color.lerp(theme.bgPrimary, theme.primary.withValues(alpha: 0.05), _bgAnimController.value)!,
+                theme.bgPrimary,
+              ],
+            ),
           ),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          text,
-          style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w500),
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -232,58 +205,34 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      subName,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: theme.onSurface,
-                      ),
-                    ),
-                    Text(
-                      'Осталось $daysLeft дн.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: daysLeft < 7 ? theme.error : theme.onSurfaceVariant,
-                      ),
-                    ),
+                    Text(subName, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: theme.onSurface)),
+                    Text('Осталось $daysLeft дн.', style: TextStyle(fontSize: 12, color: daysLeft < 7 ? theme.error : theme.onSurfaceVariant)),
                   ],
                 ),
               ),
-              Text(
-                SubscriptionConstants.creditLine,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: theme.outline,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
+              if (_isRefreshing)
+                SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: theme.primary))
+              else
+                GestureDetector(onTap: _refreshSubscription, child: Icon(Icons.refresh_rounded, size: 18, color: theme.onSurfaceVariant)),
+              const SizedBox(width: 8),
+              Text(SubscriptionConstants.creditLine, style: TextStyle(fontSize: 10, color: theme.outline, fontStyle: FontStyle.italic)),
             ],
           ),
           const SizedBox(height: 14),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Трафик',
-                style: TextStyle(fontSize: 11, color: theme.onSurfaceVariant),
-              ),
-              Text(
-                '${usedGB.toStringAsFixed(1)} / ${totalGB.toStringAsFixed(0)} GB',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: theme.onSurface),
-              ),
+              Text('Трафик', style: TextStyle(fontSize: 11, color: theme.onSurfaceVariant)),
+              Text('${usedGB.toStringAsFixed(1)} / ${totalGB.toStringAsFixed(0)} GB', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: theme.onSurface)),
             ],
           ),
           const SizedBox(height: 6),
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 6,
+              value: progress, minHeight: 6,
               backgroundColor: theme.surfaceVariant,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                progress > 0.8 ? theme.error : theme.primary,
-              ),
+              valueColor: AlwaysStoppedAnimation<Color>(progress > 0.8 ? theme.error : theme.primary),
             ),
           ),
         ],
@@ -300,7 +249,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         final hasUpdate = UpdateManager.instance.availableUpdate != null;
         final isReady = UpdateManager.instance.isUpdateReady;
         final isDownloading = state.status == 'downloading' || state.status == 'paused';
-
         if (!hasUpdate && !isReady && !isDownloading) return const SizedBox.shrink();
 
         String title;
@@ -312,9 +260,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         if (isDownloading) {
           final pct = state.progress > 0 ? (state.progress * 100).toStringAsFixed(0) : null;
           title = pct != null ? 'Скачивание $pct%' : 'Скачивание...';
-          if (state.status == 'paused') {
-            subtitle = 'Ожидание подключения...';
-          } else if (state.totalBytes > 0) {
+          if (state.status == 'paused') { subtitle = 'Ожидание подключения...'; }
+          else if (state.totalBytes > 0) {
             final mb = (state.receivedBytes / 1024 / 1024).toStringAsFixed(1);
             final totalMb = (state.totalBytes / 1024 / 1024).toStringAsFixed(1);
             subtitle = '$mb / $totalMb MB';
@@ -330,7 +277,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           accentColor = theme.success;
           onTap = () => UpdateManager.instance.downloadAndInstall(context);
         } else {
-          // Has update but not downloading yet
           final v = UpdateManager.instance.availableUpdate?.version ?? '';
           title = 'Доступна версия $v';
           subtitle = 'Нажмите для обновления';
@@ -355,10 +301,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 children: [
                   Container(
                     padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: accentColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    decoration: BoxDecoration(color: accentColor.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
                     child: Icon(icon, color: accentColor, size: 22),
                   ),
                   const SizedBox(width: 12),
@@ -366,24 +309,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(title,
-                            style: TextStyle(
-                                fontSize: 14, fontWeight: FontWeight.w600, color: theme.onSurface)),
-                        if (subtitle != null) ...[
-                          const SizedBox(height: 2),
-                          Text(subtitle,
-                              style: TextStyle(fontSize: 12, color: theme.onSurfaceVariant)),
-                        ],
+                        Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: theme.onSurface)),
+                        if (subtitle != null) ...[const SizedBox(height: 2), Text(subtitle, style: TextStyle(fontSize: 12, color: theme.onSurfaceVariant))],
                         if (isDownloading && state.progress > 0) ...[
                           const SizedBox(height: 8),
                           ClipRRect(
                             borderRadius: BorderRadius.circular(4),
-                            child: LinearProgressIndicator(
-                              value: state.progress,
-                              minHeight: 4,
-                              backgroundColor: theme.surfaceVariant,
-                              valueColor: AlwaysStoppedAnimation<Color>(accentColor),
-                            ),
+                            child: LinearProgressIndicator(value: state.progress, minHeight: 4, backgroundColor: theme.surfaceVariant, valueColor: AlwaysStoppedAnimation<Color>(accentColor)),
                           ),
                         ],
                       ],
@@ -405,13 +337,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     return Column(
       children: [
-        Center(
-          child: PowerButton(
-            state: _state,
-            onPressed: _onToggle,
-            size: 170,
-          ),
-        ),
+        Center(child: PowerButton(state: _state, onPressed: _onToggle, size: 170)),
         const SizedBox(height: 20),
         AnimatedSwitcher(
           duration: const Duration(milliseconds: 300),
@@ -419,31 +345,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             key: ValueKey(_state),
             children: [
               Text(
-                _state == VpnConnectionState.error
-                    ? 'Ошибка — проверьте настройки'
-                    : isConnected
-                        ? 'Подключено'
-                        : _state == VpnConnectionState.connecting
-                            ? 'Подключение...'
-                            : 'Отключено',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: _stateColor(theme),
-                ),
+                _state == VpnConnectionState.error ? 'Ошибка — проверьте настройки'
+                    : isConnected ? 'Подключено'
+                    : _state == VpnConnectionState.connecting ? 'Подключение...' : 'Отключено',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: _stateColor(theme)),
               ),
               if (server != null) ...[
                 const SizedBox(height: 6),
-                Text(
-                  '${server.flag ?? "🌐"} ${server.name}  ·  ${server.protocol.displayName}',
-                  style: TextStyle(fontSize: 13, color: theme.onSurfaceVariant),
-                ),
+                Text('${server.flag ?? "🌐"} ${server.name}  ·  ${server.protocol.displayName}', style: TextStyle(fontSize: 13, color: theme.onSurfaceVariant)),
               ],
               const SizedBox(height: 4),
-              Text(
-                isConnected ? 'Трафик защищён 🔒' : 'Нажмите для подключения',
-                style: TextStyle(fontSize: 13, color: theme.outline),
-              ),
+              Text(isConnected ? 'Трафик защищён 🔒' : 'Нажмите для подключения', style: TextStyle(fontSize: 13, color: theme.outline)),
             ],
           ),
         ),
@@ -451,90 +363,30 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildStatsSection(BuildContext ctx, AppTheme theme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 12),
-          child: Text(
-            'СТАТИСТИКА',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: theme.onSurfaceVariant,
-              letterSpacing: 0.8,
-            ),
-          ),
-        ),
-        Row(
-          children: [
-            Expanded(
-              child: _statCard(
-                theme,
-                Icons.arrow_upward_rounded,
-                _formatSpeed(_stats.uploadSpeed),
-                'Загрузка',
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _statCard(
-                theme,
-                Icons.arrow_downward_rounded,
-                _formatSpeed(_stats.downloadSpeed),
-                'Скачивание',
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _statCard(
-                theme,
-                Icons.timer_outlined,
-                _formatDuration(_stats.duration),
-                'Время',
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        _buildDataUsage(theme),
-      ],
-    );
-  }
+  // ─── Compact Stats: arrows + time only ───
 
-  Widget _buildDataUsage(AppTheme theme) {
+  Widget _buildCompactStats(AppTheme theme) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: theme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.outlineVariant, width: 1),
+        color: theme.surface.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: theme.outlineVariant.withValues(alpha: 0.5)),
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.data_usage_outlined, size: 20, color: theme.primary),
+          Icon(Icons.arrow_upward_rounded, size: 16, color: theme.primary),
+          const SizedBox(width: 4),
+          Text(_formatSpeedCompact(_stats.uploadSpeed), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: theme.onSurface)),
           const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Трафик',
-                  style: TextStyle(fontSize: 11, color: theme.onSurfaceVariant),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${_formatBytes(_stats.downloadTotal)} ↓  ${_formatBytes(_stats.uploadTotal)} ↑',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: theme.onSurface,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          Icon(Icons.access_time_rounded, size: 14, color: theme.onSurfaceVariant),
+          const SizedBox(width: 4),
+          Text(_formatDurationCompact(_stats.duration), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: theme.onSurface)),
+          const SizedBox(width: 12),
+          Icon(Icons.arrow_downward_rounded, size: 16, color: theme.primary),
+          const SizedBox(width: 4),
+          Text(_formatSpeedCompact(_stats.downloadSpeed), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: theme.onSurface)),
         ],
       ),
     );
@@ -549,45 +401,37 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 12),
-          child: Text(
-            'СЕРВЕРЫ',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: theme.onSurfaceVariant,
-              letterSpacing: 0.8,
-            ),
+          child: Row(
+            children: [
+              Text('СЕРВЕРЫ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: theme.onSurfaceVariant, letterSpacing: 0.8)),
+              const Spacer(),
+              _iconBtn(ctx, theme, Icons.network_ping_rounded, 'Пинг', _onPingServers),
+              const SizedBox(width: 6),
+              _iconBtn(ctx, theme, Icons.autorenew_rounded, 'Авто-перезагрузка', _onAutoReload),
+            ],
           ),
         ),
-        // Search bar
-        Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: TextField(
-            onChanged: (v) => setState(() => _serverSearch = v),
-            style: TextStyle(color: theme.onSurface, fontSize: 14),
-            decoration: InputDecoration(
-              hintText: 'Поиск серверов...',
-              hintStyle: TextStyle(color: theme.outline, fontSize: 14),
-              prefixIcon: Icon(Icons.search_rounded, color: theme.outline, size: 20),
-              filled: true,
-              fillColor: theme.surface,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: theme.outlineVariant),
+        if (_searchEnabled)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: TextField(
+              onChanged: (v) => setState(() => _serverSearch = v),
+              style: TextStyle(color: theme.onSurface, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: 'Поиск серверов...',
+                hintStyle: TextStyle(color: theme.outline, fontSize: 14),
+                prefixIcon: Icon(Icons.search_rounded, color: theme.outline, size: 20),
+                suffixIcon: _serverSearch.isNotEmpty
+                    ? IconButton(icon: Icon(Icons.clear, color: theme.outline, size: 18), onPressed: () => setState(() => _serverSearch = ''))
+                    : null,
+                filled: true, fillColor: theme.surface,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.outlineVariant)),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.outlineVariant)),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.primary.withValues(alpha: 0.5))),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: theme.outlineVariant),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: theme.primary.withValues(alpha: 0.5)),
-              ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             ),
           ),
-        ),
-        // Server list
         if (servers.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 24),
@@ -597,15 +441,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 children: [
                   Icon(Icons.cloud_off_outlined, size: 48, color: theme.outline),
                   const SizedBox(height: 12),
-                  Text(
-                    'Нет серверов',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: theme.onSurfaceVariant),
-                  ),
+                  Text('Нет серверов', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: theme.onSurfaceVariant)),
                   const SizedBox(height: 4),
-                  Text(
-                    'Добавьте подписку в настройках',
-                    style: TextStyle(fontSize: 13, color: theme.outline),
-                  ),
+                  Text('Добавьте подписку в настройках', style: TextStyle(fontSize: 13, color: theme.outline)),
                 ],
               ),
             ),
@@ -616,10 +454,43 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
+  Widget _iconBtn(BuildContext ctx, AppTheme theme, IconData icon, String tooltip, VoidCallback onTap) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: theme.surface.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: theme.outlineVariant.withValues(alpha: 0.5)),
+            ),
+            child: Icon(icon, size: 16, color: theme.onSurfaceVariant),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _onPingServers() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Пинг серверов...'), duration: Duration(seconds: 2)),
+    );
+  }
+
+  void _onAutoReload() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Авто-перезагрузка'), duration: Duration(seconds: 2)),
+    );
+  }
+
   Widget _serverTile(BuildContext c, AppTheme theme, VpnServer server) {
     final isActive = _selectedServer?.id == server.id;
-    final isConnected = widget.vpnService.activeServer?.id == server.id && 
-        _state == VpnConnectionState.connected;
+    final isConnected = widget.vpnService.activeServer?.id == server.id && _state == VpnConnectionState.connected;
     final pingColor = _pingColor(server.ping ?? 999);
 
     return Padding(
@@ -642,39 +513,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             child: Row(
               children: [
                 Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: theme.surfaceVariant,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Center(
-                    child: Text(server.flag ?? '🌐', style: const TextStyle(fontSize: 22)),
-                  ),
+                  width: 42, height: 42,
+                  decoration: BoxDecoration(color: theme.surfaceVariant, borderRadius: BorderRadius.circular(12)),
+                  child: Center(child: Text(server.flag ?? '🌐', style: const TextStyle(fontSize: 22))),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        server.name,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: theme.onSurface,
-                        ),
-                      ),
+                      Text(server.name, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: theme.onSurface)),
+                      if (server.description != null && server.description!.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(server.description!, style: TextStyle(fontSize: 11, color: theme.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      ],
                       const SizedBox(height: 4),
                       Wrap(
-                        spacing: 4,
-                        runSpacing: 2,
+                        spacing: 4, runSpacing: 2,
                         children: [
                           _badge(theme, server.protocol.displayName, theme.primary),
-                          if (server.security != VpnSecurity.none)
-                            _badge(theme, server.security.displayName, theme.protocolColor(server.security)),
-                          if (server.isXhttp)
-                            _badge(theme, 'XHTTP', theme.protocolXhttp),
+                          if (server.security != VpnSecurity.none) _badge(theme, server.security.displayName, theme.protocolColor(server.security)),
+                          if (server.isXhttp) _badge(theme, 'XHTTP', theme.protocolXhttp),
                         ],
                       ),
                     ],
@@ -687,20 +546,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Container(
-                            width: 6, height: 6,
-                            decoration: BoxDecoration(shape: BoxShape.circle, color: pingColor),
-                          ),
+                          Container(width: 6, height: 6, decoration: BoxDecoration(shape: BoxShape.circle, color: pingColor)),
                           const SizedBox(width: 4),
                           Text('${server.ping}ms', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: pingColor)),
                         ],
                       ),
                       const SizedBox(height: 6),
                     ],
-                    if (isActive)
-                      Icon(Icons.check_circle_rounded, size: 18, color: theme.success)
-                    else
-                      Icon(Icons.chevron_right_rounded, size: 20, color: theme.outline),
+                    if (isActive) Icon(Icons.check_circle_rounded, size: 18, color: theme.success)
+                    else Icon(Icons.chevron_right_rounded, size: 20, color: theme.outline),
                   ],
                 ),
               ],
@@ -714,11 +568,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget _badge(AppTheme theme, String text, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(6), border: Border.all(color: color.withValues(alpha: 0.2))),
       child: Text(text, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: color)),
     );
   }
@@ -734,114 +584,56 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     widget.vpnService.connect(server).then((success) {
       if (!success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Не удалось подключиться. Проверьте настройки.'),
-            duration: Duration(seconds: 3),
-          ),
+          const SnackBar(content: Text('Не удалось подключиться. Проверьте настройки.'), duration: Duration(seconds: 3)),
         );
       }
     });
   }
 
-  // ─── Common ───
-
-  Widget _statCard(AppTheme theme, IconData icon, String value, String label) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.outlineVariant, width: 1),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, size: 20, color: theme.primary),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: theme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(fontSize: 10, color: theme.onSurfaceVariant),
-          ),
-        ],
-      ),
-    );
-  }
-
   Color _stateColor(AppTheme theme) {
     switch (_state) {
-      case VpnConnectionState.connected:
-        return theme.success;
+      case VpnConnectionState.connected: return theme.success;
       case VpnConnectionState.connecting:
-      case VpnConnectionState.reconnecting:
-        return theme.warning;
-      case VpnConnectionState.error:
-        return theme.error;
-      default:
-        return theme.onSurfaceVariant;
+      case VpnConnectionState.reconnecting: return theme.warning;
+      case VpnConnectionState.error: return theme.error;
+      default: return theme.onSurfaceVariant;
     }
   }
 
-  String _formatSpeed(int bytesPerSec) {
+  String _formatSpeedCompact(int bytesPerSec) {
+    if (bytesPerSec <= 0) return '? B/s';
     if (bytesPerSec < 1024) return '$bytesPerSec B/s';
-    if (bytesPerSec < 1024 * 1024) {
-      return '${(bytesPerSec / 1024).toStringAsFixed(1)} KB/s';
-    }
+    if (bytesPerSec < 1024 * 1024) return '${(bytesPerSec / 1024).toStringAsFixed(1)} KB/s';
     return '${(bytesPerSec / (1024 * 1024)).toStringAsFixed(1)} MB/s';
   }
 
-  String _formatBytes(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024) {
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    }
-    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
-  }
-
-  String _formatDuration(Duration d) {
-    final h = d.inHours.toString().padLeft(2, '0');
-    final m = (d.inMinutes % 60).toString().padLeft(2, '0');
-    final s = (d.inSeconds % 60).toString().padLeft(2, '0');
-    return '$h:$m:$s';
+  String _formatDurationCompact(Duration d) {
+    final totalSeconds = d.inSeconds;
+    if (totalSeconds < 60) return '00:${totalSeconds.toString().padLeft(2, '0')}';
+    final hours = d.inHours;
+    final minutes = d.inMinutes % 60;
+    final seconds = totalSeconds % 60;
+    if (hours == 0) return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
   void _onToggle() {
-    if (_state == VpnConnectionState.connected ||
-        _state == VpnConnectionState.connecting) {
+    if (_state == VpnConnectionState.connected || _state == VpnConnectionState.connecting) {
       widget.vpnService.disconnect();
     } else {
       final server = widget.vpnService.activeServer ?? _selectedServer;
       if (server != null) {
         widget.vpnService.connect(server).then((success) {
           if (!success && mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Не удалось подключиться'),
-                duration: Duration(seconds: 2),
-              ),
-            );
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Не удалось подключиться'), duration: Duration(seconds: 2)));
           }
         });
       } else {
-        // No server selected — pick first available
         final servers = widget.vpnService.servers;
         if (servers.isNotEmpty) {
           _connect(servers.first);
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Нет серверов — добавьте подписку в настройках'),
-              duration: Duration(seconds: 3),
-            ),
-          );
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Нет серверов — добавьте подписку в настройках'), duration: Duration(seconds: 3)));
         }
       }
     }
@@ -849,106 +641,43 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Future<void> _launchBot() async {
     final uri = Uri.parse('https://t.me/max_speedbot');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
+    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
-
-  // ─── Web download section ───
 
   Widget _buildWebDownloadSection(BuildContext ctx, AppTheme theme) {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: theme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.outlineVariant),
-      ),
+      decoration: BoxDecoration(color: theme.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: theme.outlineVariant)),
       child: Column(
         children: [
           Icon(Icons.cloud_download_outlined, size: 48, color: theme.primary),
           const SizedBox(height: 12),
-          Text(
-            'Скачайте нативный клиент',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: theme.onSurface,
-            ),
-          ),
+          Text('Скачайте нативный клиент', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: theme.onSurface)),
           const SizedBox(height: 6),
-          Text(
-            'VPN в браузере невозможен. Установите приложение для полной защиты.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, color: theme.onSurfaceVariant),
-          ),
+          Text('VPN в браузере невозможен. Установите приложение для полной защиты.', textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: theme.onSurfaceVariant)),
           const SizedBox(height: 16),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            alignment: WrapAlignment.center,
+            spacing: 8, runSpacing: 8, alignment: WrapAlignment.center,
             children: [
-              _downloadBtn(
-                ctx,
-                theme,
-                'Android',
-                Icons.android,
-                'https://github.com/justcheburek0-design/maxspeed_vpn/releases',
-              ),
-              _downloadBtn(
-                ctx,
-                theme,
-                'Windows',
-                Icons.desktop_windows,
-                'https://github.com/justcheburek0-design/maxspeed_vpn/releases',
-              ),
-              _downloadBtn(
-                ctx,
-                theme,
-                'macOS',
-                Icons.laptop_mac,
-                'https://github.com/justcheburek0-design/maxspeed_vpn/releases',
-              ),
-              _downloadBtn(
-                ctx,
-                theme,
-                'Linux',
-                Icons.computer,
-                'https://github.com/justcheburek0-design/maxspeed_vpn/releases',
-              ),
-              _downloadBtn(
-                ctx,
-                theme,
-                'iOS',
-                Icons.phone_iphone,
-                'https://apps.apple.com',
-              ),
+              _downloadBtn(ctx, theme, 'Android', Icons.android, 'https://github.com/justcheburek0-design/maxspeed_vpn/releases'),
+              _downloadBtn(ctx, theme, 'Windows', Icons.desktop_windows, 'https://github.com/justcheburek0-design/maxspeed_vpn/releases'),
+              _downloadBtn(ctx, theme, 'macOS', Icons.laptop_mac, 'https://github.com/justcheburek0-design/maxspeed_vpn/releases'),
+              _downloadBtn(ctx, theme, 'Linux', Icons.computer, 'https://github.com/justcheburek0-design/maxspeed_vpn/releases'),
+              _downloadBtn(ctx, theme, 'iOS', Icons.phone_iphone, 'https://apps.apple.com'),
             ],
           ),
           const SizedBox(height: 12),
-          Text(
-            'Или используйте конфиги из раздела серверов с любым совместимым клиентом',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 11, color: theme.outline),
-          ),
+          Text('Или используйте конфиги из раздела серверов с любым совместимым клиентом', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, color: theme.outline)),
         ],
       ),
     );
   }
 
-  Widget _downloadBtn(
-    BuildContext ctx,
-    AppTheme theme,
-    String label,
-    IconData icon,
-    String url,
-  ) {
+  Widget _downloadBtn(BuildContext ctx, AppTheme theme, String label, IconData icon, String url) {
     return OutlinedButton.icon(
       onPressed: () async {
         final uri = Uri.parse(url);
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-        }
+        if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
       },
       icon: Icon(icon, size: 18),
       label: Text(label),

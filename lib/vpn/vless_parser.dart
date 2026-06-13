@@ -21,6 +21,7 @@ class VlessLink {
   final String? spx;
   final String? encryption;
   final String raw;
+  final String? description;
 
   const VlessLink({
     required this.uuid, required this.address, required this.port,
@@ -28,7 +29,7 @@ class VlessLink {
     this.security = VpnSecurity.none, this.sni, this.fingerprint,
     this.publicKey, this.shortId, this.path, this.host, this.alpn,
     this.flow, this.network, this.mode, this.spx, this.encryption,
-    required this.raw,
+    required this.raw, this.description,
   });
 
   VpnServer toServer() {
@@ -39,7 +40,7 @@ class VlessLink {
       publicKey: publicKey, shortId: shortId, path: path, host: host,
       alpn: alpn,
       flow: isReality && (flow == null || flow!.isEmpty) ? 'xtls-rprx-vision' : flow,
-      rawConfig: {'link': raw},
+      rawConfig: {'link': raw}, description: description,
     );
   }
 

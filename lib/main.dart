@@ -74,14 +74,28 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   int _currentIndex = 0;
   late final VpnService _vpnService;
+  late final PageController _pageController;
+  late AnimationController _capsuleAnimController;
+  late Animation<double> _capsuleAnimation;
 
   @override
   void initState() {
     super.initState();
     _vpnService = createVpnService();
+    _pageController = PageController(initialPage: 0);
+    _capsuleAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _capsuleAnimation = CurvedAnimation(
+      parent: _capsuleAnimController,
+      curve: Curves.easeInOutCubic,
+    );
+    _capsuleAnimController.forward(); // start at position 0 (left)
+
     if (!kIsWeb) {
       DeepLinkHandler.init();
       DeepLinkHandler.onLink.listen(_handleDeepLink);
@@ -111,16 +125,32 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void dispose() {
     _vpnService.dispose();
+    _pageController.dispose();
+    _capsuleAnimController.dispose();
     super.dispose();
+  }
+
+  void _switchTab(int index) {
+    if (index == _currentIndex) return;
+    // Haptic feedback
+    HapticFeedback.lightImpact();
+    setState(() => _currentIndex = index);
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeInOutCubic,
+    );
+    // Animate capsule
+    if (index == 1) {
+      _capsuleAnimController.forward();
+    } else {
+      _capsuleAnimController.reverse();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = GlassTheme.of(context);
-    final screens = <Widget>[
-      HomeScreen(vpnService: _vpnService),
-      SettingsScreen(vpnService: _vpnService, onThemeChanged: widget.onThemeChanged),
-    ];
 
     return Scaffold(
       backgroundColor: theme.bgPrimary,
@@ -132,16 +162,37 @@ class _MainScreenState extends State<MainScreen> {
               children: [
                 _buildSideNav(theme, constraints.maxWidth),
                 Expanded(
-                  child: IndexedStack(index: _currentIndex, children: screens),
+                  child: PageView(
+                    controller: _pageController,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: [
+                      HomeScreen(vpnService: _vpnService),
+                      SettingsScreen(vpnService: _vpnService, onThemeChanged: widget.onThemeChanged),
+                    ],
+                  ),
                 ),
               ],
             );
           }
-          // Mobile layout: content + BottomNavigationBar
+          // Mobile layout: PageView + animated bottom nav
           return Column(
             children: [
               Expanded(
-                child: IndexedStack(index: _currentIndex, children: screens),
+                child: PageView(
+                  controller: _pageController,
+                  onPageChanged: (index) {
+                    setState(() => _currentIndex = index);
+                    if (index == 1) {
+                      _capsuleAnimController.forward();
+                    } else {
+                      _capsuleAnimController.reverse();
+                    }
+                  },
+                  children: [
+                    HomeScreen(vpnService: _vpnService),
+                    SettingsScreen(vpnService: _vpnService, onThemeChanged: widget.onThemeChanged),
+                  ],
+                ),
               ),
               _buildBottomNav(theme),
             ],
@@ -220,7 +271,7 @@ class _MainScreenState extends State<MainScreen> {
 
     if (!extended) {
       return IconButton(
-        onPressed: () => setState(() => _currentIndex = index),
+        onPressed: () => _switchTab(index),
         icon: Icon(
           icon,
           color: isSelected ? theme.primary : theme.onSurfaceVariant,
@@ -237,7 +288,7 @@ class _MainScreenState extends State<MainScreen> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => setState(() => _currentIndex = index),
+          onTap: () => _switchTab(index),
           borderRadius: BorderRadius.circular(12),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -308,10 +359,44 @@ class _MainScreenState extends State<MainScreen> {
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(34),
-          child: Row(
+          child: Stack(
             children: [
-              _navItem(0, Icons.home_rounded, 'Главная', theme),
-              _navItem(1, Icons.settings_rounded, 'Настройки', theme),
+              // Animated capsule background
+              AnimatedBuilder(
+                animation: _capsuleAnimation,
+                builder: (context, child) {
+                  return LayoutBuilder(
+                    builder: (context, constraints) {
+                      final capsuleWidth = constraints.maxWidth / 2;
+                      final offset = _capsuleAnimation.value * capsuleWidth;
+                      return Positioned(
+                        left: offset,
+                        top: 6,
+                        bottom: 6,
+                        width: capsuleWidth,
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 6),
+                          decoration: BoxDecoration(
+                            color: theme.primary.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(28),
+                            border: Border.all(
+                              color: theme.primary.withValues(alpha: 0.25),
+                              width: 1,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+              // Nav items on top
+              Row(
+                children: [
+                  _navItem(0, Icons.home_rounded, 'Главная', theme),
+                  _navItem(1, Icons.settings_rounded, 'Настройки', theme),
+                ],
+              ),
             ],
           ),
         ),
@@ -328,21 +413,12 @@ class _MainScreenState extends State<MainScreen> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => setState(() => _currentIndex = index),
-          splashColor: theme.primary.withValues(alpha: 0.1),
-          highlightColor: theme.primary.withValues(alpha: 0.05),
+          onTap: () => _switchTab(index),
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
           borderRadius: BorderRadius.circular(28),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOutCubic,
-            margin: const EdgeInsets.all(6),
+          child: Container(
             padding: const EdgeInsets.symmetric(vertical: 8),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? theme.primary.withValues(alpha: 0.1)
-                  : Colors.transparent,
-              borderRadius: const BorderRadius.all(Radius.circular(28)),
-            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
@@ -357,7 +433,7 @@ class _MainScreenState extends State<MainScreen> {
                   label,
                   style: TextStyle(
                     fontSize: 10,
-                    fontWeight: FontWeight.w400,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                     color: isSelected ? activeColor : inactiveColor,
                   ),
                   overflow: TextOverflow.ellipsis,

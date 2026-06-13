@@ -72,6 +72,7 @@ class VpnServer {
   final int? ping;
   final String? country;
   final String? flag;
+  final String? description;
 
   const VpnServer({
     required this.id,
@@ -96,6 +97,7 @@ class VpnServer {
     this.ping,
     this.country,
     this.flag,
+    this.description,
   });
 
   VpnServer copyWith({
@@ -104,7 +106,7 @@ class VpnServer {
     String? uuid, String? sni, String? fingerprint,
     String? publicKey, String? shortId, String? path, String? host,
     String? alpn, String? flow, String? mode, Map<String, dynamic>? rawConfig,
-    bool? isFavorite, int? ping, String? country, String? flag,
+    bool? isFavorite, int? ping, String? country, String? flag, String? description,
   }) {
     return VpnServer(
       id: id ?? this.id, name: name ?? this.name,
@@ -119,7 +121,7 @@ class VpnServer {
       rawConfig: rawConfig ?? this.rawConfig,
       isFavorite: isFavorite ?? this.isFavorite,
       ping: ping ?? this.ping, country: country ?? this.country,
-      flag: flag ?? this.flag,
+      flag: flag ?? this.flag, description: description ?? this.description,
     );
   }
 
