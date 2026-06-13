@@ -1,5 +1,9 @@
+import 'dart:async';
+import 'dart:io' show Socket;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_constants.dart';
@@ -25,6 +29,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String _serverSearch = '';
   bool _searchEnabled = false;
   bool _isRefreshing = false;
+  bool _isPinging = false;
+  final Map<String, int> _pingResults = {};
 
   @override
   void initState() {
@@ -477,10 +483,115 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  void _onPingServers() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Пинг серверов...'), duration: Duration(seconds: 2)),
+  Future<void> _onPingServers() async {
+    if (_isPinging) return;
+    setState(() {
+      _isPinging = true;
+      _pingResults.clear();
+    });
+    final servers = widget.vpnService.servers;
+    if (servers.isEmpty) {
+      setState(() => _isPinging = false);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Нет серверов для пинга')),
+      );
+      return;
+    }
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+            const SizedBox(width: 12),
+            Text('Пинг ${servers.length} серверов...'),
+          ],
+        ),
+        duration: const Duration(seconds: 30),
+      ),
     );
+    try {
+      final futures = servers.map((s) => _pingServer(s));
+      final results = await Future.wait(futures);
+      for (int i = 0; i < servers.length; i++) {
+        _pingResults[servers[i].id] = results[i];
+      }
+      if (mounted) {
+        final reachable = _pingResults.values.where((v) => v > 0).toList();
+        final avg = reachable.isEmpty ? 0 : (reachable.fold(0, (a, b) => a + b) / reachable.length).round();
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Пинг готов! Средний: ${avg}ms (${reachable.length}/${servers.length} доступно)'),
+            duration: const Duration(seconds: 3),
+            backgroundColor: reachable.isNotEmpty ? Colors.green.shade700 : Colors.red.shade700,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка пинга: $e')),
+        );
+      }
+    }
+    if (mounted) setState(() => _isPinging = false);
+  }
+
+  Future<int> _pingServer(VpnServer server) async {
+    final sw = Stopwatch()..start();
+    try {
+      final host = server.address;
+      final port = server.port;
+      // Try TCP connect first (works for most protocols)
+      final socket = await Socket.connect(host, port, timeout: const Duration(seconds: 5));
+      sw.stop();
+      socket.destroy();
+      return sw.elapsedMilliseconds;
+    } catch (_) {
+      sw.stop();
+      return -1;
+    }
+  }
+
+  void _onCopyConfig(VpnServer server) {
+    final link = server.rawLink.isNotEmpty
+        ? server.rawLink
+        : '${server.protocol.displayName.toLowerCase()}://${server.address}:${server.port}';
+    Clipboard.setData(ClipboardData(text: link));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Конфиг "${server.name}" скопирован!'),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _onWebExportConfig(VpnServer server) {
+    // For web: use WebVpnService.copyConfigToClipboard (singbox JSON)
+    // For native: copy share link
+    if (kIsWeb) {
+      try {
+        // Check if the service has copyConfigToClipboard (web only)
+        final service = widget.vpnService;
+        final config = service.getShareText(server);
+        Clipboard.setData(ClipboardData(text: config));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Конфиг "${server.name}" скопирован!'),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } catch (_) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Ошибка копирования конфига')),
+        );
+      }
+    } else {
+      _onCopyConfig(server);
+    }
   }
 
   void _onAutoReload() {
@@ -492,7 +603,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget _serverTile(BuildContext c, AppTheme theme, VpnServer server) {
     final isActive = _selectedServer?.id == server.id;
     final isConnected = widget.vpnService.activeServer?.id == server.id && _state == VpnConnectionState.connected;
-    final pingColor = _pingColor(server.ping ?? 999);
+    final pingResult = _pingResults[server.id];
+    final displayPing = pingResult ?? server.ping;
+    final pingColor = _pingColor(displayPing ?? 999);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -500,6 +613,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         color: Colors.transparent,
         child: InkWell(
           onTap: () => _connect(server),
+          onLongPress: () => _showServerContextMenu(c, server),
           borderRadius: BorderRadius.circular(14),
           child: Container(
             padding: const EdgeInsets.all(12),
@@ -543,13 +657,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    if (server.ping != null) ...[
+                    if (displayPing != null) ...[
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Container(width: 6, height: 6, decoration: BoxDecoration(shape: BoxShape.circle, color: pingColor)),
                           const SizedBox(width: 4),
-                          Text('${server.ping}ms', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: pingColor)),
+                          Text('${displayPing}ms', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: pingColor)),
                         ],
                       ),
                       const SizedBox(height: 6),
@@ -562,6 +676,79 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  void _showServerContextMenu(BuildContext context, VpnServer server) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final theme = GlassTheme.of(ctx);
+        return Container(
+          decoration: BoxDecoration(
+            color: theme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            border: Border.all(color: theme.outlineVariant),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(color: theme.outline, borderRadius: BorderRadius.circular(2)),
+              ),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(server.name, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: theme.onSurface)),
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                leading: Icon(Icons.copy_rounded, color: theme.primary),
+                title: const Text('Копировать конфиг'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _onCopyConfig(server);
+                },
+              ),
+              if (kIsWeb)
+                ListTile(
+                  leading: Icon(Icons.code_rounded, color: theme.primary),
+                  title: const Text('Копировать Singbox JSON'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _onWebExportConfig(server);
+                  },
+                ),
+              ListTile(
+                leading: Icon(Icons.share_rounded, color: theme.primary),
+                title: const Text('Поделиться'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _shareConfig(server);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _shareConfig(VpnServer server) {
+    final link = server.rawLink.isNotEmpty
+        ? server.rawLink
+        : '${server.protocol.displayName.toLowerCase()}://${server.address}:${server.port}';
+    // On native, use share_plus alternative; for now just copy
+    Clipboard.setData(ClipboardData(text: link));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Ссылка "${server.name}" скопирована для шаринга'),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
@@ -582,6 +769,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   void _connect(VpnServer server) {
     setState(() => _selectedServer = server);
+    // Apply per-app proxy settings before connecting
+    _applyPerAppProxy();
     widget.vpnService.connect(server).then((success) {
       if (!success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -589,6 +778,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         );
       }
     });
+  }
+
+  Future<void> _applyPerAppProxy() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final excludedStr = prefs.getString('excluded_apps') ?? '';
+      final excludedApps = excludedStr.isEmpty ? <String>[] : excludedStr.split(',');
+      final proxyModeBypass = prefs.getBool('proxy_mode_bypass') ?? true;
+      await widget.vpnService.setPerAppProxyMode(proxyModeBypass ? 'bypass' : 'tunnel');
+      await widget.vpnService.setPerAppProxyList(excludedApps);
+    } catch (e) {
+      debugPrint('Failed to apply per-app proxy: $e');
+    }
   }
 
   Color _stateColor(AppTheme theme) {

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_singbox_vpn/flutter_singbox.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models/vpn_models.dart';
 import '../../vpn/singbox_config_generator.dart';
@@ -140,9 +141,15 @@ class AndroidVpnService implements VpnService {
     try {
       String content;
       if (url.startsWith('http://') || url.startsWith('https://')) {
-        // Для Android используем платформенный канал или http
-        // Пока ожидаем что контент уже загружен
-        return;
+        final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
+        if (response.statusCode == 200) {
+          content = response.body;
+        } else {
+          _addLog(VpnLogLevel.error, 'Subscription HTTP ${response.statusCode}');
+          return;
+        }
+      } else if (url.startsWith('data:')) {
+        content = Uri.decodeFull(url.substring(url.indexOf(',') + 1));
       } else {
         content = url;
       }
@@ -151,7 +158,10 @@ class AndroidVpnService implements VpnService {
       _servers.addAll(parsed);
       await _saveServers();
       _serversController.add(List.unmodifiable(_servers));
-    } catch (_) {}
+      _addLog(VpnLogLevel.info, 'Загружено ${parsed.length} серверов');
+    } catch (e) {
+      _addLog(VpnLogLevel.error, 'Ошибка загрузки подписки: $e');
+    }
   }
 
   /// Заменить список серверов (после парсинга подписки)

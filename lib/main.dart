@@ -128,31 +128,39 @@ class _MainScreenState extends State<MainScreen> {
       SettingsScreen(vpnService: _vpnService, onThemeChanged: widget.onThemeChanged),
     ];
 
-    return Scaffold(
-      backgroundColor: theme.bgPrimary,
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          // Desktop layout: NavigationRail + content
-          if (constraints.maxWidth >= 700) {
-            return Row(
+    return PopScope(
+      canPop: _currentIndex == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _currentIndex != 0) {
+          _switchTab(0);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: theme.bgPrimary,
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            // Desktop layout: NavigationRail + content
+            if (constraints.maxWidth >= 700) {
+              return Row(
+                children: [
+                  _buildSideNav(theme, constraints.maxWidth),
+                  Expanded(
+                    child: IndexedStack(index: _currentIndex, children: screens),
+                  ),
+                ],
+              );
+            }
+            // Mobile layout: content + BottomNavigationBar
+            return Column(
               children: [
-                _buildSideNav(theme, constraints.maxWidth),
                 Expanded(
                   child: IndexedStack(index: _currentIndex, children: screens),
                 ),
+                _buildBottomNav(theme),
               ],
             );
-          }
-          // Mobile layout: content + BottomNavigationBar
-          return Column(
-            children: [
-              Expanded(
-                child: IndexedStack(index: _currentIndex, children: screens),
-              ),
-              _buildBottomNav(theme),
-            ],
-          );
-        },
+          },
+        ),
       ),
     );
   }

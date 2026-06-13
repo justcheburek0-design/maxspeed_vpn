@@ -32,6 +32,8 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
   String _pingerUrl = 'https://www.gstatic.com/generate_204';
   int _pingerTimeout = 3;
   bool _proxyModeBypass = true;
+  String _logLevelFilter = 'all';
+  final ScrollController _logScrollController = ScrollController();
 
   static const List<String> _pingerTypes = ['tcp', 'http_get', 'http_head', 'icmp'];
   static const Map<String, String> _pingerTypeLabels = {
@@ -63,11 +65,13 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
   @override
   void dispose() {
     _tabController.dispose();
+    _logScrollController.dispose();
     super.dispose();
   }
 
   Future<void> _loadPrefs() async {
     final prefs = await SharedPreferences.getInstance();
+    final excludedStr = prefs.getString('excluded_apps') ?? '';
     setState(() {
       _selectedTheme = prefs.getString('theme') ?? 'incy';
       _searchEnabled = prefs.getBool('search_enabled') ?? false;
@@ -75,7 +79,19 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
       _pingerUrl = prefs.getString('pinger_url') ?? 'https://www.gstatic.com/generate_204';
       _pingerTimeout = prefs.getInt('pinger_timeout') ?? 3;
       _proxyModeBypass = prefs.getBool('proxy_mode_bypass') ?? true;
+      _excludedApps = excludedStr.isEmpty ? <String>{} : excludedStr.split(',').toSet();
     });
+  }
+
+  Future<void> _saveExcludedApps() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('excluded_apps', _excludedApps.join(','));
+    // Apply to VPN service
+    try {
+      await widget.vpnService.setPerAppProxyList(_excludedApps.toList());
+    } catch (e) {
+      debugPrint('Failed to apply per-app proxy: $e');
+    }
   }
 
   Future<void> _loadApps() async {
@@ -484,6 +500,7 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
                               _excludedApps.remove(app.packageName);
                             }
                           });
+                          _saveExcludedApps();
                         },
                         title: Text(app.appName, style: TextStyle(color: theme.onSurface, fontSize: 14)),
                         subtitle: Text(app.packageName, style: TextStyle(fontSize: 11, color: theme.onSurfaceVariant)),
@@ -503,7 +520,7 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
           child: Row(
             children: [
               Text('Логи', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: theme.onSurface)),
@@ -517,6 +534,20 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
                 child: Text('${widget.vpnService.logs.length}', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: theme.onPrimaryContainer)),
               ),
               const Spacer(),
+              // Level filter dropdown
+              DropdownButton<String>(
+                value: _logLevelFilter,
+                underline: const SizedBox(),
+                dropdownColor: theme.surface,
+                style: TextStyle(fontSize: 12, color: theme.onSurface),
+                items: const [
+                  DropdownMenuItem(value: 'all', child: Text('Все')),
+                  DropdownMenuItem(value: 'info', child: Text('Info')),
+                  DropdownMenuItem(value: 'warning', child: Text('Warning')),
+                  DropdownMenuItem(value: 'error', child: Text('Error')),
+                ],
+                onChanged: (v) => setState(() => _logLevelFilter = v ?? 'all'),
+              ),
               IconButton(
                 icon: Icon(Icons.delete_outline, color: theme.error, size: 20),
                 onPressed: () => _showClearLogsDialog(theme),
@@ -534,7 +565,11 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
           child: StreamBuilder<VpnLogEntry>(
             stream: widget.vpnService.logStream,
             builder: (c, snap) {
-              final logs = widget.vpnService.logs.reversed.toList();
+              var logs = widget.vpnService.logs.reversed.toList();
+              // Apply level filter
+              if (_logLevelFilter != 'all') {
+                logs = logs.where((l) => l.level.name == _logLevelFilter).toList();
+              }
               if (logs.isEmpty) {
                 return Center(
                   child: Column(
@@ -547,7 +582,18 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
                   ),
                 );
               }
+              // Auto-scroll to bottom on new log
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (_logScrollController.hasClients) {
+                  _logScrollController.animateTo(
+                    _logScrollController.position.maxScrollExtent,
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOut,
+                  );
+                }
+              });
               return ListView.separated(
+                controller: _logScrollController,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: logs.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 4),
