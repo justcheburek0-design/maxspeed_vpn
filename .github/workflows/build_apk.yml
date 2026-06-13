@@ -130,37 +130,43 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
+          toolset: 14.40
+
+      - name: Verify MSVC
+        shell: cmd
+        run: |
+          cl.exe
+          cmake --version
+          ninja --version
 
       - name: Build Windows
         run: flutter build windows --release --no-tree-shake-icons
 
       - name: Package as zip
-        shell: pwsh
+        shell: cmd
         run: |
-          $paths = @(
-            "build/windows/x64/Release/Runner",
-            "build/windows/x64/Release/runner",
-            "build/windows/x64/release/Runner",
-            "build/windows/x64/release/runner"
+          setlocal enabledelayedexpansion
+          set "FOUND="
+          for %%p in (
+            "build\windows\x64\Release\Runner"
+            "build\windows\x64\Release\runner"
+            "build\windows\x64\release\Runner"
+            "build\windows\x64\release\runner"
+          ) do (
+            if not defined FOUND (
+              if exist "%%~p" (
+                set "FOUND=%%~p"
+              )
+            )
           )
-          $found = $null
-          foreach ($p in $paths) {
-            if (Test-Path $p) {
-              $found = $p
-              break
-            }
-          }
-          if (-not $found) {
-            Write-Host "ERROR: Could not find build output. Contents of build/windows:"
-            Get-ChildItem -Path "build/windows" -Recurse -Depth 4 | Select-Object FullName
-            exit 1
-          }
-          Write-Host "Found build output at: $found"
-          $dest = "$env:TEMP\maxspeed_vpn-windows-x64.zip"
-          Compress-Archive -Path "$found\*" -DestinationPath $dest -Force
-          $size = (Get-Item $dest).Length / 1MB
-          Write-Host "Package size: $([math]::Round($size, 1)) MB"
-          echo "ARCHIVE_PATH=$dest" >> $env:GITHUB_ENV
+          if not defined FOUND (
+            echo ERROR: Build output not found
+            dir /s /b build\windows\
+            exit /b 1
+          )
+          echo Found: %FOUND%
+          powershell -Command "Compress-Archive -Path '%FOUND%\*' -DestinationPath '%TEMP%\maxspeed_vpn-windows-x64.zip' -Force"
+          echo ARCHIVE_PATH=%TEMP%\maxspeed_vpn-windows-x64.zip >> %GITHUB_ENV%
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
@@ -293,10 +299,12 @@ jobs:
             exit 1
           fi
           echo "Found Runner.app at: $RUNNER"
-          mkdir -p /tmp/ios_payload/Payload
-          cp -r "$RUNNER" /tmp/ios_payload/Payload/
-          cd /tmp
-          zip -r /tmp/maxspeed_vpn-ios.zip Payload
+          PAYLOAD_DIR="/tmp/ios_payload/Payload"
+          rm -rf /tmp/ios_payload
+          mkdir -p "$PAYLOAD_DIR"
+          cp -a "$RUNNER" "$PAYLOAD_DIR/Runner.app"
+          (cd /tmp/ios_payload && zip -r /tmp/maxspeed_vpn-ios.zip Payload)
+          rm -rf /tmp/ios_payload
           echo "Package size: $(du -h /tmp/maxspeed_vpn-ios.zip | cut -f1)"
 
       - name: Upload iOS artifact
