@@ -187,9 +187,11 @@ jobs:
       - name: Enable macOS desktop
         run: flutter config --enable-macos-desktop
 
-      # Build arm64
+      # Build arm64 (disable Metal for broader compatibility)
       - name: Build macOS arm64
-        run: flutter build macos --release --no-tree-shake-icons
+        run: |
+          export FLUTTER_MACOS_ENABLE_METAL=0
+          flutter build macos --release --no-tree-shake-icons
 
       - name: Package arm64 dmg
         run: |
@@ -217,7 +219,9 @@ jobs:
         run: rm -rf build/macos/Build/Products/Release
 
       - name: Build macOS x86_64
-        run: arch -x86_64 flutter build macos --release --no-tree-shake-icons
+        run: |
+          export FLUTTER_MACOS_ENABLE_METAL=0
+          arch -x86_64 flutter build macos --release --no-tree-shake-icons
 
       - name: Package x86_64 dmg
         run: |
