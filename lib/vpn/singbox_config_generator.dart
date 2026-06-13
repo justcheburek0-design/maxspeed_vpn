@@ -13,22 +13,22 @@ class SingboxConfigGenerator {
     final dns = {
       'servers': [
         {'type': 'local', 'tag': 'local-dns'},
-        {'type': 'https', 'tag': 'cloudflare-doh', 'server': AppConstants.Singbox.cloudflareDns},
-        {'type': 'https', 'tag': 'google-doh', 'server': AppConstants.Singbox.googleDns},
+        {'type': 'https', 'tag': 'cloudflare-doh', 'server': SingboxConstants.cloudflareDns},
+        {'type': 'https', 'tag': 'google-doh', 'server': SingboxConstants.googleDns},
       ],
       'final': 'cloudflare-doh',
-      'strategy': AppConstants.Singbox.dnsStrategy,
+      'strategy': SingboxConstants.dnsStrategy,
     };
 
     final inbounds = [
       {
         'type': 'tun',
         'tag': 'tun-in',
-        'interface_name': AppConstants.Singbox.tunInterfaceName,
-        'mtu': AppConstants.Singbox.tunMtu,
-        'address': [AppConstants.Singbox.tunAddress],
+        'interface_name': SingboxConstants.tunInterfaceName,
+        'mtu': SingboxConstants.tunMtu,
+        'address': [SingboxConstants.tunAddress],
         'auto_route': true,
-        'stack': AppConstants.Singbox.tunStack,
+        'stack': SingboxConstants.tunStack,
       },
     ];
 
@@ -117,14 +117,14 @@ class SingboxConfigGenerator {
       if (server.alpn != null && server.alpn!.isNotEmpty) tls['alpn'] = server.alpn!.split(',');
       tls['utls'] = {
         'enabled': true,
-        'fingerprint': server.fingerprint ?? AppConstants.Singbox.defaultFingerprint,
+        'fingerprint': server.fingerprint ?? SingboxConstants.defaultFingerprint,
       };
     } else if (server.isReality) {
       tls['enabled'] = true;
       if (server.sni != null && server.sni!.isNotEmpty) tls['server_name'] = server.sni;
       tls['utls'] = {
         'enabled': true,
-        'fingerprint': server.fingerprint ?? AppConstants.Singbox.defaultFingerprint,
+        'fingerprint': server.fingerprint ?? SingboxConstants.defaultFingerprint,
       };
       tls['reality'] = {
         'enabled': true,
@@ -151,14 +151,14 @@ class SingboxConfigGenerator {
         'server_name': server.sni ?? server.address,
         'utls': {
           'enabled': true,
-          'fingerprint': server.fingerprint ?? AppConstants.Singbox.defaultFingerprint,
+          'fingerprint': server.fingerprint ?? SingboxConstants.defaultFingerprint,
         },
       },
     };
   }
 
   static Map<String, dynamic> _buildShadowsocksOutbound(VpnServer server) {
-    final method = server.rawConfig['method'] as String? ?? AppConstants.Singbox.defaultSsMethod;
+    final method = server.rawConfig['method'] as String? ?? SingboxConstants.defaultSsMethod;
     return {
       'type': 'shadowsocks',
       'tag': 'vpn',

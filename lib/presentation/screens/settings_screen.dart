@@ -178,9 +178,9 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
               builder: (ctx, snap) => _infoTile(theme, 'Версия', snap.data ?? '—'),
             ),
             Divider(color: theme.outlineVariant, height: 1, indent: 16, endIndent: 16),
-            _infoTile(theme, 'Протокол', AppConstants.Settings.protocolDisplay),
+            _infoTile(theme, 'Протокол', SettingsConstants.protocolDisplay),
             Divider(color: theme.outlineVariant, height: 1, indent: 16, endIndent: 16),
-            _infoTile(theme, 'Engine', AppConstants.Settings.engineDisplay),
+            _infoTile(theme, 'Engine', SettingsConstants.engineDisplay),
           ]),
         ),
       ],
@@ -576,7 +576,7 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
                 // Save URL for reference
                 final prefs = await SharedPreferences.getInstance();
                 await prefs.setString('subscription_url', input);
-                await prefs.setString('subscription_name', AppConstants.Subscription.defaultName);
+                await prefs.setString('subscription_name', SubscriptionConstants.defaultName);
 
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(

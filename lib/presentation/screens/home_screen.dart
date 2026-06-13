@@ -194,10 +194,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildSubscriptionCard(BuildContext ctx, AppTheme theme) {
-    final subName = AppConstants.Subscription.defaultName;
-    final daysLeft = AppConstants.Subscription.defaultDaysLeft;
-    final totalGB = AppConstants.Subscription.defaultTotalGB;
-    final usedGB = AppConstants.Subscription.defaultUsedGB;
+    final subName = SubscriptionConstants.defaultName;
+    final daysLeft = SubscriptionConstants.defaultDaysLeft;
+    final totalGB = SubscriptionConstants.defaultTotalGB;
+    final usedGB = SubscriptionConstants.defaultUsedGB;
     final progress = (usedGB / totalGB).clamp(0.0, 1.0);
 
     return Container(
@@ -244,7 +244,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
               ),
               Text(
-                AppConstants.Subscription.creditLine,
+                SubscriptionConstants.creditLine,
                 style: TextStyle(
                   fontSize: 10,
                   color: theme.outline,
