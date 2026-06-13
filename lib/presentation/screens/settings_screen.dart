@@ -1,11 +1,10 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_themes.dart';
 import '../../data/models/vpn_models.dart';
@@ -671,9 +670,9 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
       }
 
       try {
-        final dir = await getTemporaryDirectory();
-        final file = File('${dir.path}/maxspeed_vpn_logs.txt');
-        await file.writeAsString(sb.toString());
+        if (!kIsWeb) {
+          // File write removed — logs are copied to clipboard
+        }
       } catch (_) {}
 
       await Clipboard.setData(ClipboardData(text: sb.toString()));
