@@ -47,7 +47,7 @@ jobs:
       - name: Build APK
         run: |
           cd android
-          ./gradlew assembleRelease --no-daemon --offline \
+          ./gradlew assembleRelease --no-daemon \
             -Dorg.gradle.vfs.watch=false \
             -Dorg.gradle.configuration-cache=false \
             -Dorg.gradle.jvmargs="-Xmx4096m"
