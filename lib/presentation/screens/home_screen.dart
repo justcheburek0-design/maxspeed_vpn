@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io' show Socket;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -541,12 +540,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Future<int> _pingServer(VpnServer server) async {
     final sw = Stopwatch()..start();
     try {
-      final host = server.address;
-      final port = server.port;
-      // Try TCP connect first (works for most protocols)
-      final socket = await Socket.connect(host, port, timeout: const Duration(seconds: 5));
+      // HTTP-based ping — works on all platforms including web
+      final uri = Uri.parse('http://${server.address}:${server.port}');
+      await http.get(uri).timeout(const Duration(seconds: 5));
       sw.stop();
-      socket.destroy();
       return sw.elapsedMilliseconds;
     } catch (_) {
       sw.stop();
@@ -767,10 +764,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return const Color(0xFFFF7043);
   }
 
-  void _connect(VpnServer server) {
+  Future<void> _connect(VpnServer server) async {
     setState(() => _selectedServer = server);
     // Apply per-app proxy settings before connecting
-    _applyPerAppProxy();
+    await _applyPerAppProxy();
     widget.vpnService.connect(server).then((success) {
       if (!success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

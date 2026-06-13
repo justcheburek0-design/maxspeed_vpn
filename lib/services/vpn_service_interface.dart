@@ -32,5 +32,8 @@ abstract class VpnService {
   /// Copy config to clipboard (web). Returns false on other platforms.
   Future<bool> copyConfigToClipboard(VpnServer server) async => false;
 
+  /// Get shareable config text for a server. Returns empty string on platforms that don't support it.
+  String getShareText(VpnServer server) => '';
+
   void dispose();
 }
