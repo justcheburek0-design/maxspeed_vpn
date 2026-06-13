@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'update_info.dart';
 
-/// Stub for web — no-op UpdateManager.
 class UpdateDownloadState {
   final double progress;
   final int receivedBytes;
@@ -29,10 +28,16 @@ class UpdateManager {
   static final UpdateManager instance = UpdateManager._();
   UpdateManager._();
 
+  final UpdateDownloadState _state = UpdateDownloadState.idle;
+  UpdateDownloadState get state => _state;
+
   UpdateInfo? get availableUpdate => null;
+  bool get isUpdateReady => false;
+
   Stream<UpdateDownloadState> get progressStream => const Stream.empty();
 
   Future<void> initialize() async {}
   Future<void> checkForUpdate() async {}
   Future<void> downloadAndInstall(BuildContext context) async {}
+  Future<dynamic> getDownloadedApk(String version) async => null;
 }
