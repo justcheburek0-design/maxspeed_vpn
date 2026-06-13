@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,9 +7,9 @@ import 'core/theme/app_themes.dart';
 import 'core/deeplink/deep_link_handler.dart';
 import 'presentation/screens/home_screen.dart';
 import 'presentation/screens/settings_screen.dart';
-import 'services/update_checker.dart';
 import 'services/vpn_service_factory.dart';
 import 'services/vpn_service_interface.dart';
+import 'services/update_api.dart' as update_api;
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -81,22 +82,19 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
     _vpnService = createVpnService();
-    DeepLinkHandler.init();
-    DeepLinkHandler.onLink.listen(_handleDeepLink);
-    _checkInitialLink();
-    _checkForUpdates();
+    if (!kIsWeb) {
+      DeepLinkHandler.init();
+      DeepLinkHandler.onLink.listen(_handleDeepLink);
+      _checkInitialLink();
+      _checkForUpdates();
+    }
   }
 
   Future<void> _checkForUpdates() async {
     await Future.delayed(const Duration(seconds: 3));
     if (!mounted) return;
     try {
-      final update = await UpdateChecker.checkForUpdate();
-      if (update != null && mounted) {
-        if (context.mounted) {
-          showUpdateDialog(context, update);
-        }
-      }
+      await update_api.checkAndPrompt(context);
     } catch (_) {}
   }
 

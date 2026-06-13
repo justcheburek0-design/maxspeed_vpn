@@ -1,13 +1,13 @@
 import 'dart:async';
+
+import 'package:flutter/services.dart';
+
 import '../../data/models/vpn_models.dart';
+import '../../vpn/singbox_config_generator.dart';
 import '../vpn_service_interface.dart';
 
-/// Web-реализация VPN сервиса.
-/// 
-/// В браузере VPN невозможен напрямую. Приложение работает как:
-/// - Просмотр/управление подписками
-/// - Копирование конфигов для ручного импорта
-/// - Скачивание нативного клиента
+/// Web implementation — no VPN in browser.
+/// Features: subscription management, config export, clipboard copy.
 class WebVpnService implements VpnService {
   final _stateController = StreamController<VpnConnectionState>.broadcast();
   final _statsController = StreamController<VpnConnectionStats>.broadcast();
@@ -41,13 +41,31 @@ class WebVpnService implements VpnService {
 
   WebVpnService() {
     _addLog(VpnLogLevel.info, 'MaxSpeedVPN Web');
-    _addLog(VpnLogLevel.info, 'VPN в браузере невозможен — используйте нативный клиент');
+    _addLog(VpnLogLevel.info, 'VPN unavailable in browser — use native client');
+  }
+
+  /// Generate config and copy to clipboard. Returns true if copied.
+  Future<bool> copyConfigToClipboard(VpnServer server) async {
+    try {
+      final config = SingboxConfigGenerator.generate(server);
+      await Clipboard.setData(ClipboardData(text: config));
+      _addLog(VpnLogLevel.info, 'Config for ${server.name} copied to clipboard');
+      return true;
+    } catch (e) {
+      _addLog(VpnLogLevel.error, 'Clipboard error: $e');
+      return false;
+    }
+  }
+
+  /// Generate shareable URI for the server
+  String getShareText(VpnServer server) {
+    if (server.rawLink.isNotEmpty) return server.rawLink;
+    return '${server.protocol.displayName.toLowerCase()}://${server.address}:${server.port}';
   }
 
   @override
   Future<bool> connect(VpnServer server) async {
-    _addLog(VpnLogLevel.warning, 'VPN недоступен в браузере');
-    _addLog(VpnLogLevel.info, 'Скачайте нативный клиент для ${server.name}');
+    _addLog(VpnLogLevel.warning, 'VPN unavailable in browser');
     return false;
   }
 
@@ -55,7 +73,7 @@ class WebVpnService implements VpnService {
   Future<bool> disconnect() async => true;
 
   @override
-  Future<String> getStatus() async => 'web_unsupported';
+  Future<String> getStatus() async => 'web';
 
   @override
   Future<List<InstalledApp>> getInstalledApps() async => [];
@@ -82,9 +100,7 @@ class WebVpnService implements VpnService {
   }
 
   @override
-  Future<void> clearLogs() async {
-    _logs.clear();
-  }
+  Future<void> clearLogs() async => _logs.clear();
 
   @override
   Future<void> updateServers(List<VpnServer> servers) async {

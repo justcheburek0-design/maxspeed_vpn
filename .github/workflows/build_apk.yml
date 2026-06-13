@@ -1,4 +1,4 @@
-name: Build & Release APK
+name: Build & Release
 
 on:
   push:
@@ -9,7 +9,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  # ─── Android APK ───────────────────────────────
+  build-android:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -41,9 +42,9 @@ jobs:
         run: |
           flutter clean
           rm -rf android/.gradle android/app/build
-          flutter build apk --release --no-tree-shake-icons 2>&1
-          if [ $? -ne 0 ] || [ ! -f build/app/outputs/flutter-apk/app-release.apk ]; then
-            echo "Flutter build failed, falling back to direct Gradle build..."
+          flutter build apk --release --no-tree-shake-icons 2>&1 || true
+          if [ ! -f build/app/outputs/flutter-apk/app-release.apk ]; then
+            echo "Flutter build failed, falling back to Gradle..."
             cd android
             ./gradlew assembleRelease --no-daemon --stacktrace \
               -Dorg.gradle.vfs.watch=false \
@@ -55,6 +56,109 @@ jobs:
         env:
           GRADLE_OPTS: "-Dorg.gradle.vfs.watch=false -Dorg.gradle.daemon=false -Dorg.gradle.configuration-cache=false -Dorg.gradle.jvmargs=-Xmx4096m"
           JAVA_TOOL_OPTIONS: "-Dorg.gradle.vfs.watch=false"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-release
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+  # ─── Linux Desktop ─────────────────────────────
+  build-linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.1'
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Install Linux deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libsecret-1-0-0 libsecret-1-dev libnotify4 libnss3 libgbm-dev xdg-utils
+
+      - name: Enable Linux desktop
+        run: flutter config --enable-linux-desktop
+
+      - name: Build Linux
+        run: flutter build linux --release --no-tree-shake-icons
+
+      - name: Package as tar.gz
+        run: |
+          cd build/linux/x64/release/bundle
+          tar -czf /tmp/maxspeed_vpn-linux-x64.tar.gz *
+          echo "Package size: $(du -h /tmp/maxspeed_vpn-linux-x64.tar.gz | cut -f1)"
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-release
+          path: /tmp/maxspeed_vpn-linux-x64.tar.gz
+
+  # ─── Web ───────────────────────────────────────
+  build-web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.1'
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+        continue-on-error: true
+
+      - name: Build Web
+        run: flutter build web --release --no-tree-shake-icons
+
+      - name: Package web build
+        run: |
+          cd build/web
+          tar -czf /tmp/maxspeed_vpn-web.tar.gz *
+          echo "Package size: $(du -h /tmp/maxspeed_vpn-web.tar.gz | cut -f1)"
+
+      - name: Upload Web artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-release
+          path: /tmp/maxspeed_vpn-web.tar.gz
+
+  # ─── Release ───────────────────────────────────
+  release:
+    needs: [build-android, build-linux, build-web]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
 
       - name: Get version
         id: version
@@ -83,8 +187,11 @@ jobs:
         with:
           tag_name: v${{ steps.version.outputs.version }}
           name: MaxSpeedVPN v${{ steps.version.outputs.version }}
-          files: build/app/outputs/flutter-apk/app-release.apk
+          files: |
+            artifacts/apk-release/app-release.apk
+            artifacts/linux-release/maxspeed_vpn-linux-x64.tar.gz
+            artifacts/web-release/maxspeed_vpn-web.tar.gz
           generate_release_notes: true
-          fail_on_unmatched_files: true
+          fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

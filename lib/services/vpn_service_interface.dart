@@ -29,5 +29,8 @@ abstract class VpnService {
   Future<void> setPerAppProxyList(List<String> packages);
   Future<List<String>> getPerAppProxyList();
 
+  /// Copy config to clipboard (web). Returns false on other platforms.
+  Future<bool> copyConfigToClipboard(VpnServer server) async => false;
+
   void dispose();
 }

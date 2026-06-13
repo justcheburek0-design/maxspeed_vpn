@@ -1,18 +1,20 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../data/models/vpn_models.dart';
-import '../../vpn/singbox_config_generator.dart';
 import '../vpn_service_interface.dart';
 
-/// iOS реализация VPN сервиса через NetworkExtension.
+/// iOS VPN via NetworkExtension platform channel.
 ///
-/// Требует Packet Tunnel Provider extension для реального VPN.
-/// Сейчас — skeleton с platform channel.
+/// Channel: maxspeed/vpn
+/// Methods: connect, disconnect, getStatus, saveConfig
+/// Events: onStatusChanged (from native side via EventChannel)
 class IosVpnService implements VpnService {
   static const _channel = MethodChannel('maxspeed/vpn');
+  static const _eventChannel = EventChannel('maxspeed/vpn/status');
 
   final _stateController = StreamController<VpnConnectionState>.broadcast();
   final _statsController = StreamController<VpnConnectionStats>.broadcast();
@@ -24,6 +26,10 @@ class IosVpnService implements VpnService {
   final List<VpnLogEntry> _logs = [];
   final List<VpnServer> _servers = [];
   final _serversController = StreamController<List<VpnServer>>.broadcast();
+
+  StreamSubscription<dynamic>? _statusSub;
+  DateTime? _connectTime;
+  Timer? _statsTimer;
 
   @override
   Stream<VpnConnectionState> get stateStream => _stateController.stream;
@@ -45,41 +51,64 @@ class IosVpnService implements VpnService {
   Stream<List<VpnServer>> get serversStream => _serversController.stream;
 
   IosVpnService() {
-    _addLog(VpnLogLevel.info, '${AppConstants.appName} iOS VPN инициализирован');
+    _addLog(VpnLogLevel.info, '${AppConstants.appName} iOS VPN init');
+    _statusSub = _eventChannel.receiveBroadcastStream().listen(_onStatusEvent);
+  }
+
+  void _onStatusEvent(dynamic event) {
+    if (event is String) {
+      _addLog(VpnLogLevel.debug, 'Native status: $event');
+      switch (event) {
+        case 'connected':
+          _setState(VpnConnectionState.connected);
+          _connectTime = DateTime.now();
+          _startStatsTimer();
+          break;
+        case 'disconnected':
+          _setState(VpnConnectionState.disconnected);
+          _activeServer = null;
+          _stopStatsTimer();
+          break;
+        case 'connecting':
+          _setState(VpnConnectionState.connecting);
+          break;
+        case 'error':
+          _setState(VpnConnectionState.error);
+          break;
+      }
+    }
   }
 
   @override
   Future<bool> connect(VpnServer server) async {
     try {
-      _addLog(VpnLogLevel.info, 'Подключение к ${server.name}...');
+      _addLog(VpnLogLevel.info, 'Connecting to ${server.name}...');
+      _setState(VpnConnectionState.connecting);
 
-      // Save config to shared storage for tunnel extension
-      final config = SingboxConfigGenerator.generate(server);
-      await _channel.invokeMethod('saveConfig', {'config': config});
+      final result = await _channel.invokeMethod<bool>('connect', {
+        'address': server.address,
+        'port': server.port,
+        'uuid': server.uuid,
+        'protocol': server.protocol,
+        'name': server.name,
+      });
 
-      // Try to connect via platform channel
-      // This will fail until Packet Tunnel Provider is implemented
-      final result = await _channel.invokeMethod<bool>('connect');
       if (result == true) {
         _activeServer = server;
-        _state = VpnConnectionState.connected;
-        _stateController.add(_state);
+        // State will be updated by native status event
         return true;
       }
 
-      _addLog(VpnLogLevel.warning, 'iOS VPN требует NetworkExtension (в разработке)');
-      _state = VpnConnectionState.disconnected;
-      _stateController.add(_state);
+      _addLog(VpnLogLevel.warning, 'iOS VPN requires NetworkExtension');
+      _setState(VpnConnectionState.disconnected);
       return false;
     } on PlatformException catch (e) {
-      _addLog(VpnLogLevel.error, 'Ошибка: ${e.message}');
-      _state = VpnConnectionState.error;
-      _stateController.add(_state);
+      _addLog(VpnLogLevel.error, 'Platform error: ${e.message}');
+      _setState(VpnConnectionState.error);
       return false;
     } catch (e) {
-      _addLog(VpnLogLevel.error, 'Ошибка подключения: $e');
-      _state = VpnConnectionState.error;
-      _stateController.add(_state);
+      _addLog(VpnLogLevel.error, 'Connect error: $e');
+      _setState(VpnConnectionState.error);
       return false;
     }
   }
@@ -87,14 +116,14 @@ class IosVpnService implements VpnService {
   @override
   Future<bool> disconnect() async {
     try {
-      _addLog(VpnLogLevel.info, 'Отключение VPN...');
+      _addLog(VpnLogLevel.info, 'Disconnecting...');
       await _channel.invokeMethod('disconnect');
-      _state = VpnConnectionState.disconnected;
+      _setState(VpnConnectionState.disconnected);
       _activeServer = null;
-      _stateController.add(_state);
+      _stopStatsTimer();
       return true;
     } catch (e) {
-      _addLog(VpnLogLevel.error, 'Ошибка отключения: $e');
+      _addLog(VpnLogLevel.error, 'Disconnect error: $e');
       return false;
     }
   }
@@ -102,8 +131,8 @@ class IosVpnService implements VpnService {
   @override
   Future<String> getStatus() async {
     try {
-      final status = await _channel.invokeMethod<String>('getStatus');
-      return status ?? 'unknown';
+      final s = await _channel.invokeMethod<String>('getStatus');
+      return s ?? 'unknown';
     } catch (_) {
       return 'error';
     }
@@ -122,16 +151,43 @@ class IosVpnService implements VpnService {
   Future<List<String>> getPerAppProxyList() async => [];
 
   @override
-  Future<void> clearLogs() async {
-    _logs.clear();
-  }
+  Future<void> clearLogs() async => _logs.clear();
 
   @override
   Future<void> updateServers(List<VpnServer> servers) async {
     _servers.clear();
     _servers.addAll(servers);
     _serversController.add(List.unmodifiable(_servers));
-    _addLog(VpnLogLevel.info, 'Обновлено серверов: ${servers.length}');
+    _addLog(VpnLogLevel.info, 'Servers updated: ${servers.length}');
+  }
+
+  // ── Stats timer (iOS doesn't have local stats API — track duration) ──
+
+  void _startStatsTimer() {
+    _statsTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_connectTime == null) return;
+      final duration = DateTime.now().difference(_connectTime!);
+      _stats = VpnConnectionStats(
+        uploadTotal: 0,
+        downloadTotal: 0,
+        duration: duration,
+      );
+      _statsController.add(_stats);
+    });
+  }
+
+  void _stopStatsTimer() {
+    _statsTimer?.cancel();
+    _statsTimer = null;
+    _stats = const VpnConnectionStats();
+    _statsController.add(_stats);
+  }
+
+  // ── Helpers ──
+
+  void _setState(VpnConnectionState s) {
+    _state = s;
+    _stateController.add(s);
   }
 
   void _addLog(VpnLogLevel level, String message) {
@@ -144,13 +200,22 @@ class IosVpnService implements VpnService {
     _logs.add(entry);
     if (_logs.length > 500) _logs.removeAt(0);
     _logController.add(entry);
+    if (kDebugMode) print('[VPN][${level.name}] $message');
   }
 
   @override
   void dispose() {
+    _statusSub?.cancel();
+    _stopStatsTimer();
     _stateController.close();
     _statsController.close();
     _logController.close();
     _serversController.close();
+  }
+
+  @override
+  Future<bool> copyConfigToClipboard(VpnServer server) async {
+    // iOS: no clipboard copy (config applied automatically)
+    return false;
   }
 }

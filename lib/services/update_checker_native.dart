@@ -14,7 +14,6 @@ class UpdateInfo {
   final String downloadUrl;
   final String releaseNotes;
   final DateTime publishedAt;
-
   const UpdateInfo({
     required this.version,
     required this.downloadUrl,
@@ -26,12 +25,7 @@ class UpdateInfo {
 class UpdateChecker {
   static const String _repoApiUrl = AppConstants.githubRepoApi;
 
-  /// Проверяет наличие обновления.
-  /// На web всегда возвращает null (обновление через перезагрузку страницы).
   static Future<UpdateInfo?> checkForUpdate() async {
-    // On web, updates are handled by page reload
-    if (kIsWeb) return null;
-
     try {
       final packageInfo = await PackageInfo.fromPlatform();
       final currentVersion = packageInfo.version;
@@ -51,18 +45,14 @@ class UpdateChecker {
       String? downloadUrl;
       for (final asset in assets) {
         final name = asset['name'] as String? ?? '';
-        // Pick the right asset for current platform
         if (_matchesPlatform(name)) {
           downloadUrl = asset['browser_download_url'] as String?;
           break;
         }
       }
-
-      // Fallback: any asset URL
       if (downloadUrl == null && assets.isNotEmpty) {
         downloadUrl = assets.first['browser_download_url'] as String?;
       }
-
       if (downloadUrl == null) return null;
 
       if (_compareVersions(latestVersion, currentVersion) > 0) {
@@ -73,7 +63,6 @@ class UpdateChecker {
           publishedAt: publishedAt,
         );
       }
-
       return null;
     } catch (e) {
       debugPrint('Update check failed: $e');
@@ -91,7 +80,6 @@ class UpdateChecker {
   }
 
   static int _compareVersions(String a, String b) {
-    // Strip build metadata (+N) for comparison: "1.3.1+5" → "1.3.1"
     String strip(String v) => v.contains('+') ? v.substring(0, v.indexOf('+')) : v;
     final aParts = strip(a).split('.').map((e) => int.tryParse(e) ?? 0).toList();
     final bParts = strip(b).split('.').map((e) => int.tryParse(e) ?? 0).toList();
@@ -105,41 +93,30 @@ class UpdateChecker {
   }
 
   static Future<void> downloadAndInstall(BuildContext context, UpdateInfo info) async {
-    // On non-Android platforms, open download URL in browser
     if (!Platform.isAndroid) {
-      try {
-        final uri = Uri.parse(info.downloadUrl);
-        // url_launcher would be better, but for now just show the URL
-        if (context.mounted) {
-          showDialog(
-            context: context,
-            builder: (ctx) => AlertDialog(
-              title: const Text('Обновление'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('Скачайте обновление для вашей платформы (${_currentPlatformLabel()}):'),
-                  const SizedBox(height: 12),
-                  SelectableText(
-                    info.downloadUrl,
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Закрыть'),
-                ),
+      // Non-Android: show download URL dialog
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Update'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Download for ${_platformLabel()}:'),
+                const SizedBox(height: 12),
+                SelectableText(info.downloadUrl, style: const TextStyle(fontSize: 12)),
               ],
             ),
-          );
-        }
-      } catch (_) {}
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+            ],
+          ),
+        );
+      }
       return;
     }
 
-    // Android: show download dialog
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -147,7 +124,7 @@ class UpdateChecker {
     );
   }
 
-  static String _currentPlatformLabel() {
+  static String _platformLabel() {
     if (Platform.isIOS) return 'iOS';
     if (Platform.isMacOS) return 'macOS';
     if (Platform.isLinux) return 'Linux';
@@ -160,13 +137,12 @@ class _DownloadDialog extends StatefulWidget {
   final String url;
   final String version;
   const _DownloadDialog({required this.url, required this.version});
-
   @override State<_DownloadDialog> createState() => _DownloadDialogState();
 }
 
 class _DownloadDialogState extends State<_DownloadDialog> {
   double _progress = 0;
-  String _status = 'Подготовка...';
+  String _status = 'Preparing...';
   bool _done = false;
   bool _error = false;
 
@@ -178,23 +154,19 @@ class _DownloadDialogState extends State<_DownloadDialog> {
 
   Future<void> _download() async {
     try {
-      setState(() => _status = 'Загрузка обновления...');
-
+      setState(() => _status = 'Downloading...');
       final client = http.Client();
       final request = http.Request('GET', Uri.parse(widget.url));
       final response = await client.send(request).timeout(const Duration(minutes: 5));
 
       if (response.statusCode != 200) {
-        setState(() { _status = 'Ошибка сервера: ${response.statusCode}'; _error = true; });
+        setState(() { _status = 'Server error: ${response.statusCode}'; _error = true; });
         return;
       }
 
       final total = response.contentLength ?? 0;
-
-      // Download directly to app cache dir so FileProvider can access it
       final tempDir = await getTemporaryDirectory();
       final file = File('${tempDir.path}/maxspeed_vpn_v${widget.version}.apk');
-      // Clean up any previous download
       if (file.existsSync()) file.deleteSync();
       final sink = file.openWrite();
 
@@ -207,23 +179,19 @@ class _DownloadDialogState extends State<_DownloadDialog> {
             _progress = received / total;
             final mb = (received / 1024 / 1024).toStringAsFixed(1);
             final totalMb = (total / 1024 / 1024).toStringAsFixed(1);
-            _status = 'Загрузка... $mb / $totalMb MB';
+            _status = 'Downloading... $mb / $totalMb MB';
           });
         }
       }
       await sink.close();
       client.close();
 
-      setState(() { _status = 'Установка...'; _done = true; });
-
-      // Small delay so UI updates before install intent
+      setState(() { _status = 'Installing...'; _done = true; });
       await Future.delayed(const Duration(milliseconds: 500));
       await _openApk(file);
-
-      // Close dialog after successful install launch
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      setState(() { _status = 'Ошибка: $e'; _error = true; });
+      setState(() { _status = 'Error: $e'; _error = true; });
     }
   }
 
@@ -233,25 +201,16 @@ class _DownloadDialogState extends State<_DownloadDialog> {
     try {
       if (Platform.isAndroid) {
         final result = await _channel.invokeMethod('installApk', {'path': file.path});
-        if (result != true) {
-          throw Exception('installApk returned false');
-        }
+        if (result != true) throw Exception('installApk returned false');
       }
     } catch (e) {
       debugPrint('installApk failed: $e');
-      // Fallback: try opening the file directly
       try {
-        final uri = Uri.file(file.path);
-        // This may not work without FileProvider, but worth trying
         await _channel.invokeMethod('openFile', {'path': file.path});
       } catch (e2) {
-        debugPrint('openFile fallback also failed: $e2');
-        // Last resort: show path to user
+        debugPrint('openFile fallback failed: $e2');
         if (mounted) {
-          setState(() {
-            _status = 'Скачано: ${file.path}\nОткройте файл вручную';
-            _error = true;
-          });
+          setState(() { _status = 'Downloaded: ${file.path}'; _error = true; });
         }
       }
     }
@@ -264,12 +223,11 @@ class _DownloadDialogState extends State<_DownloadDialog> {
       backgroundColor: theme.surface,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: Text('Обновление', style: TextStyle(color: theme.onSurface)),
+      title: Text('Update', style: TextStyle(color: theme.onSurface)),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (!_done && !_error)
-            CircularProgressIndicator(value: _progress > 0 ? _progress : null, color: theme.primary),
+          if (!_done && !_error) CircularProgressIndicator(value: _progress > 0 ? _progress : null, color: theme.primary),
           if (_done) Icon(Icons.check_circle, color: theme.success, size: 48),
           if (_error) Icon(Icons.error, color: theme.error, size: 48),
           const SizedBox(height: 16),
@@ -286,7 +244,7 @@ class _DownloadDialogState extends State<_DownloadDialog> {
         if (_done || _error)
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(_done ? 'Готово' : 'Закрыть', style: TextStyle(color: theme.primary)),
+            child: Text(_done ? 'Done' : 'Close', style: TextStyle(color: theme.primary)),
           ),
       ],
     );
@@ -305,25 +263,22 @@ Future<void> showUpdateDialog(BuildContext context, UpdateInfo info) async {
         children: [
           Icon(Icons.system_update, color: theme.primary),
           const SizedBox(width: 12),
-          Text('Доступно обновление', style: TextStyle(color: theme.onSurface)),
+          Text('Update available', style: TextStyle(color: theme.onSurface)),
         ],
       ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Новая версия: ${info.version}', style: TextStyle(color: theme.primary, fontWeight: FontWeight.bold)),
+          Text('New version: ${info.version}', style: TextStyle(color: theme.primary, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           if (info.releaseNotes.isNotEmpty) ...[
-            Text('Что нового:', style: TextStyle(color: theme.onSurfaceVariant, fontWeight: FontWeight.w600)),
+            Text('What\'s new:', style: TextStyle(color: theme.onSurfaceVariant, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
             Container(
               constraints: const BoxConstraints(maxHeight: 200),
               child: SingleChildScrollView(
-                child: Text(
-                  info.releaseNotes,
-                  style: TextStyle(color: theme.onSurfaceVariant, fontSize: 13),
-                ),
+                child: Text(info.releaseNotes, style: TextStyle(color: theme.onSurfaceVariant, fontSize: 13)),
               ),
             ),
           ],
@@ -332,7 +287,7 @@ Future<void> showUpdateDialog(BuildContext context, UpdateInfo info) async {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(ctx),
-          child: Text('Позже', style: TextStyle(color: theme.outline)),
+          child: Text('Later', style: TextStyle(color: theme.outline)),
         ),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
@@ -344,7 +299,7 @@ Future<void> showUpdateDialog(BuildContext context, UpdateInfo info) async {
             Navigator.pop(ctx);
             UpdateChecker.downloadAndInstall(context, info);
           },
-          child: const Text('Обновить'),
+          child: const Text('Update'),
         ),
       ],
     ),

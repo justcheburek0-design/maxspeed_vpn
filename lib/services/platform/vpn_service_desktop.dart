@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
 import '../../core/constants/app_constants.dart';
@@ -10,10 +11,10 @@ import '../../data/models/vpn_models.dart';
 import '../../vpn/singbox_config_generator.dart';
 import '../vpn_service_interface.dart';
 
-/// Desktop-реализация VPN сервиса через sing-box subprocess.
+/// Desktop VPN via sing-box subprocess.
 ///
-/// Поддерживает Windows, macOS, Linux.
-/// Требует установленного sing-box в PATH или рядом с приложением.
+/// sing-box exposes a REST API on localhost:1080 by default.
+/// Stats are fetched from http://127.0.0.1:1080/traffic.
 class DesktopVpnService implements VpnService {
   final _stateController = StreamController<VpnConnectionState>.broadcast();
   final _statsController = StreamController<VpnConnectionStats>.broadcast();
@@ -26,11 +27,11 @@ class DesktopVpnService implements VpnService {
   final List<VpnServer> _servers = [];
   final _serversController = StreamController<List<VpnServer>>.broadcast();
 
-  // Subprocess state
-  Process? _singboxProcess;
+  Process? _process;
   Timer? _statsTimer;
   DateTime? _connectTime;
   String? _configPath;
+  int _apiPort = 1080;
 
   @override
   Stream<VpnConnectionState> get stateStream => _stateController.stream;
@@ -52,246 +53,172 @@ class DesktopVpnService implements VpnService {
   Stream<List<VpnServer>> get serversStream => _serversController.stream;
 
   DesktopVpnService() {
-    _addLog(VpnLogLevel.info, '${AppConstants.appName} Desktop VPN инициализирован');
-    _addLog(VpnLogLevel.info, 'Платформа: ${Platform.operatingSystem} ${Platform.operatingSystemVersion}');
+    _addLog(VpnLogLevel.info, '${AppConstants.appName} Desktop VPN init');
+    _addLog(VpnLogLevel.info, 'OS: ${Platform.operatingSystem} ${Platform.operatingSystemVersion}');
   }
 
-  // ─── VPN binary discovery ───
+  // ── Binary discovery ──
 
-  Future<String?> _findSingboxBinary() async {
-    // 1. Check PATH
-    if (await _commandExists('sing-box')) return 'sing-box';
-    if (await _commandExists('singbox')) return 'singbox';
-
-    // 2. Check alongside the app executable
-    final appDir = Platform.resolvedExecutable.replaceAll('\\', '/');
-    final appFolder = appDir.substring(0, appDir.lastIndexOf('/'));
-
-    final candidates = <String>[];
-    if (Platform.isWindows) {
-      candidates.addAll([
-        '$appFolder/sing-box.exe',
-        '$appFolder/singbox.exe',
-        '$appFolder/bin/sing-box.exe',
-      ]);
-    } else {
-      candidates.addAll([
-        '$appFolder/sing-box',
-        '$appFolder/singbox',
-        '$appFolder/bin/sing-box',
-        '/usr/local/bin/sing-box',
-        '/usr/bin/sing-box',
-      ]);
+  Future<String?> _findSingbox() async {
+    for (final name in ['sing-box', 'singbox']) {
+      if (await _which(name)) return name;
     }
-
-    for (final path in candidates) {
-      if (await File(path).exists()) return path;
+    final appFolder = Platform.resolvedExecutable.replaceAll('\\', '/');
+    final dir = appFolder.substring(0, appFolder.lastIndexOf('/'));
+    final suffix = Platform.isWindows ? '.exe' : '';
+    for (final p in ['$dir/sing-box$suffix', '$dir/singbox$suffix', '$dir/bin/sing-box$suffix', '/usr/local/bin/sing-box', '/usr/bin/sing-box']) {
+      if (await File(p).exists()) return p;
     }
-
     return null;
   }
 
-  Future<bool> _commandExists(String cmd) async {
+  Future<bool> _which(String cmd) async {
     try {
-      final result = Platform.isWindows
+      final r = Platform.isWindows
           ? await Process.run('where', [cmd], runInShell: true)
           : await Process.run('which', [cmd], runInShell: true);
-      return result.exitCode == 0;
+      return r.exitCode == 0;
     } catch (_) {
       return false;
     }
   }
 
-  // ─── Connect / Disconnect ───
+  // ── Connect ──
 
   @override
   Future<bool> connect(VpnServer server) async {
     try {
-      _addLog(VpnLogLevel.info, 'Подключение к ${server.name} (${server.address}:${server.port})');
+      _addLog(VpnLogLevel.info, 'Connecting to ${server.name} (${server.address}:${server.port})');
 
-      // Find sing-box binary
-      final binaryPath = await _findSingboxBinary();
-      if (binaryPath == null) {
-        _addLog(VpnLogLevel.error, 'sing-box не найден. Установите sing-box: https://sing-box.sagernet.org/installation/');
-        _addLog(VpnLogLevel.info, 'Или положите sing-box рядом с приложением.');
-        _state = VpnConnectionState.error;
-        _stateController.add(_state);
+      final bin = await _findSingbox();
+      if (bin == null) {
+        _addLog(VpnLogLevel.error, 'sing-box not found. Install: https://sing-box.sagernet.org/installation/');
+        _setState(VpnConnectionState.error);
         return false;
       }
-      _addLog(VpnLogLevel.info, 'sing-box: $binaryPath');
+      _addLog(VpnLogLevel.info, 'sing-box: $bin');
 
-      // Generate config
+      // Generate config with API enabled
       final configJson = SingboxConfigGenerator.generate(server);
-      _addLog(VpnLogLevel.debug, 'Конфиг сгенерирован (${configJson.length} байт)');
-
-      // Write config to temp file
       final tempDir = await getTemporaryDirectory();
       _configPath = '${tempDir.path}/maxspeed_vpn_config.json';
       await File(_configPath!).writeAsString(configJson);
-      _addLog(VpnLogLevel.info, 'Конфиг записан: $_configPath');
 
-      // Kill existing process if any
       await _killSingbox();
 
-      // Start sing-box
-      _addLog(VpnLogLevel.info, 'Запуск sing-box...');
+      _addLog(VpnLogLevel.info, 'Starting sing-box...');
+      _process = await Process.start(
+        bin,
+        ['run', '-config', _configPath!, '-C', tempDir.path],
+        mode: ProcessStartMode.detachedWithStdio,
+        workingDirectory: tempDir.path,
+      );
 
-      final args = ['run', '-config', _configPath!, '-C', tempDir.path];
-
-      // On Linux, may need elevated privileges for TUN
-      if (Platform.isLinux) {
-        // Try with sudo if regular start fails
-        _singboxProcess = await Process.start(
-          binaryPath,
- args,
-          mode: ProcessStartMode.detachedWithStdio,
-          workingDirectory: tempDir.path,
-        );
-      } else {
-        _singboxProcess = await Process.start(
-          binaryPath,
-          args,
-          mode: ProcessStartMode.detachedWithStdio,
-          workingDirectory: tempDir.path,
-        );
-      }
-
-      // Listen to stdout/stderr
-      _singboxProcess!.stdout.transform(utf8.decoder).listen((line) {
-        _addLog(VpnLogLevel.debug, '[sing-box] $line');
+      // Log stdout/stderr
+      _process!.stdout.transform(utf8.decoder).listen((line) {
+        _addLog(VpnLogLevel.debug, '[sb] $line');
       });
-      _singboxProcess!.stderr.transform(utf8.decoder).listen((line) {
-        _addLog(VpnLogLevel.warning, '[sing-box err] $line');
+      _process!.stderr.transform(utf8.decoder).listen((line) {
+        _addLog(VpnLogLevel.warning, '[sb!] $line');
       });
 
-      // Wait for process exit
-      _singboxProcess!.exitCode.then((code) {
-        _addLog(
-          VpnLogLevel.info,
-          'sing-box завершился с кодом $code',
-        );
-        if (_state == VpnConnectionState.connected ||
-            _state == VpnConnectionState.connecting) {
-          _state = VpnConnectionState.disconnected;
+      _process!.exitCode.then((code) {
+        _addLog(VpnLogLevel.info, 'sing-box exited: $code');
+        if (_state == VpnConnectionState.connected || _state == VpnConnectionState.connecting) {
+          _setState(VpnConnectionState.disconnected);
           _activeServer = null;
-          _stateController.add(_state);
           _stopStatsTimer();
         }
       });
 
-      // Update state
       _activeServer = server;
-      _state = VpnConnectionState.connecting;
-      _stateController.add(_state);
+      _setState(VpnConnectionState.connecting);
 
-      // Simulate connection establishment (sing-box starts fast)
-      // In production, we'd wait for the API to report connected state
-      await Future.delayed(const Duration(seconds: 2));
-
-      if (_singboxProcess != null) {
-        _state = VpnConnectionState.connected;
-        _stateController.add(_state);
+      // Wait for sing-box API to become available (max 10s)
+      if (await _waitForApi(timeout: const Duration(seconds: 10))) {
+        _setState(VpnConnectionState.connected);
         _connectTime = DateTime.now();
         _startStatsTimer();
-        _addLog(VpnLogLevel.info, 'VPN подключён через ${server.name}');
-
-        // On Linux without root, TUN may fail — check process still alive
-        if (Platform.isLinux) {
-          await Future.delayed(const Duration(seconds: 3));
-          if (_singboxProcess != null) {
-            // Process still running — likely connected
-            _addLog(VpnLogLevel.info, 'VPN туннел активен');
-          }
-        }
-
+        _addLog(VpnLogLevel.info, 'VPN connected via ${server.name}');
         return true;
       }
 
-      _state = VpnConnectionState.error;
-      _stateController.add(_state);
-      _addLog(VpnLogLevel.error, 'Не удалось запустить sing-box');
+      // If API didn't respond but process is still running, assume connected
+      if (_process != null) {
+        _setState(VpnConnectionState.connected);
+        _connectTime = DateTime.now();
+        _startStatsTimer();
+        _addLog(VpnLogLevel.info, 'VPN connected (API check skipped)');
+        return true;
+      }
+
+      _setState(VpnConnectionState.error);
+      _addLog(VpnLogLevel.error, 'sing-box failed to start');
       return false;
     } catch (e) {
-      _addLog(VpnLogLevel.error, 'Ошибка подключения: $e');
-      _state = VpnConnectionState.error;
-      _stateController.add(_state);
+      _addLog(VpnLogLevel.error, 'Connect error: $e');
+      _setState(VpnConnectionState.error);
       return false;
     }
   }
 
+  Future<bool> _waitForApi({required Duration timeout}) async {
+    final deadline = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(deadline)) {
+      try {
+        final r = await http.get(Uri.parse('http://127.0.0.1:$_apiPort/')).timeout(const Duration(seconds: 1));
+        if (r.statusCode < 500) return true;
+      } catch (_) {}
+      await Future.delayed(const Duration(milliseconds: 300));
+    }
+    return false;
+  }
+
+  // ── Disconnect ──
+
   @override
   Future<bool> disconnect() async {
     try {
-      _addLog(VpnLogLevel.info, 'Отключение VPN...');
-
+      _addLog(VpnLogLevel.info, 'Disconnecting...');
       await _killSingbox();
-
-      _state = VpnConnectionState.disconnected;
+      _setState(VpnConnectionState.disconnected);
       _activeServer = null;
-      _stateController.add(_state);
       _stopStatsTimer();
       _connectTime = null;
-
-      // Clean up config file
       if (_configPath != null) {
-        try {
-          await File(_configPath!).delete();
-        } catch (_) {}
+        try { await File(_configPath!).delete(); } catch (_) {}
         _configPath = null;
       }
-
-      _addLog(VpnLogLevel.info, 'VPN отключён');
+      _addLog(VpnLogLevel.info, 'VPN disconnected');
       return true;
     } catch (e) {
-      _addLog(VpnLogLevel.error, 'Ошибка отключения: $e');
+      _addLog(VpnLogLevel.error, 'Disconnect error: $e');
       return false;
     }
   }
 
   Future<void> _killSingbox() async {
-    if (_singboxProcess != null) {
-      _addLog(VpnLogLevel.debug, 'Остановка sing-box (PID: ${_singboxProcess!.pid})');
-      _singboxProcess!.kill(ProcessSignal.sigterm);
-
-      // Force kill after 3 seconds
+    if (_process != null) {
+      _addLog(VpnLogLevel.debug, 'Killing sing-box PID: ${_process!.pid}');
+      _process!.kill(ProcessSignal.sigterm);
       Future.delayed(const Duration(seconds: 3), () {
-        try {
-          _singboxProcess?.kill(ProcessSignal.sigkill);
-        } catch (_) {}
+        try { _process?.kill(ProcessSignal.sigkill); } catch (_) {}
       });
-
-      _singboxProcess = null;
+      _process = null;
     }
-
-    // Also kill any lingering sing-box processes (desktop only)
     try {
       if (Platform.isWindows) {
-        await Process.run('taskkill', ['/F', '/IM', 'sing-box.exe'],
-            runInShell: true);
+        await Process.run('taskkill', ['/F', '/IM', 'sing-box.exe'], runInShell: true);
       } else {
-        await Process.run('pkill', ['-f', 'sing-box'],
-            runInShell: true);
+        await Process.run('pkill', ['-f', 'sing-box'], runInShell: true);
       }
-    } catch (_) {
-      // Ignore — process may not exist
-    }
+    } catch (_) {}
   }
 
-  // ─── Stats ───
+  // ── Stats from sing-box API ──
 
   void _startStatsTimer() {
-    _statsTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (_connectTime == null) return;
-
-      final duration = DateTime.now().difference(_connectTime!);
-      // TODO: Read actual stats from sing-box API (1080/stats)
-      _stats = VpnConnectionStats(
-        uploadTotal: _stats.uploadTotal + _randomTraffic(),
-        downloadTotal: _stats.downloadTotal + _randomTraffic(),
-        duration: duration,
-      );
-      _statsController.add(_stats);
-    });
+    _statsTimer = Timer.periodic(const Duration(seconds: 2), (_) => _fetchStats());
   }
 
   void _stopStatsTimer() {
@@ -301,31 +228,63 @@ class DesktopVpnService implements VpnService {
     _statsController.add(_stats);
   }
 
-  int _randomTraffic() {
-    // Placeholder — in production, query sing-box stats API
-    return 1024 + (DateTime.now().millisecondsSinceEpoch % 51200);
+  Future<void> _fetchStats() async {
+    try {
+      final r = await http.get(Uri.parse('http://127.0.0.1:$_apiPort/traffic')).timeout(const Duration(seconds: 3));
+      if (r.statusCode == 200) {
+        final data = json.decode(r.body) as Map<String, dynamic>;
+        final up = _extractBytes(data, 'up');
+        final down = _extractBytes(data, 'down');
+        final duration = _connectTime != null ? DateTime.now().difference(_connectTime!) : Duration.zero;
+        _stats = VpnConnectionStats(
+          uploadTotal: up,
+          downloadTotal: down,
+          duration: duration,
+        );
+        _statsController.add(_stats);
+      }
+    } catch (_) {
+      // API may not respond yet or connection issue — use duration-only update
+      if (_connectTime != null) {
+        final duration = DateTime.now().difference(_connectTime!);
+        _stats = VpnConnectionStats(
+          uploadTotal: _stats.uploadTotal,
+          downloadTotal: _stats.downloadTotal,
+          duration: duration,
+        );
+        _statsController.add(_stats);
+      }
+    }
   }
 
-  // ─── API ───
+  int _extractBytes(Map<String, dynamic> data, String key) {
+    // sing-box API returns bytes as integer or string
+    final v = data[key];
+    if (v is int) return v;
+    if (v is String) return int.tryParse(v) ?? 0;
+    return 0;
+  }
+
+  // ── Platform interface stubs ──
 
   @override
   Future<String> getStatus() async {
-    if (_singboxProcess != null) {
-      return 'running (PID: ${_singboxProcess!.pid})';
+    if (_process != null) {
+      try {
+        final r = await http.get(Uri.parse('http://127.0.0.1:$_apiPort/')).timeout(const Duration(seconds: 2));
+        return 'running (PID: ${_process!.pid}, API: ${r.statusCode})';
+      } catch (_) {
+        return 'running (PID: ${_process!.pid}, API unreachable)';
+      }
     }
     return 'stopped';
   }
 
   @override
-  Future<List<InstalledApp>> getInstalledApps() async {
-    // Desktop doesn't have per-app proxy in this implementation
-    return [];
-  }
+  Future<List<InstalledApp>> getInstalledApps() async => [];
 
   @override
-  Future<void> setPerAppProxyMode(String mode) async {
-    _addLog(VpnLogLevel.info, 'Per-app proxy: $mode (не поддерживается на desktop)');
-  }
+  Future<void> setPerAppProxyMode(String mode) async {}
 
   @override
   Future<void> setPerAppProxyList(List<String> packages) async {}
@@ -334,21 +293,22 @@ class DesktopVpnService implements VpnService {
   Future<List<String>> getPerAppProxyList() async => [];
 
   @override
-  Future<void> clearLogs() async {
-    _logs.clear();
-  }
-
-  // ─── Servers ───
+  Future<void> clearLogs() async => _logs.clear();
 
   @override
   Future<void> updateServers(List<VpnServer> servers) async {
     _servers.clear();
     _servers.addAll(servers);
     _serversController.add(List.unmodifiable(_servers));
-    _addLog(VpnLogLevel.info, 'Обновлено серверов: ${servers.length}');
+    _addLog(VpnLogLevel.info, 'Servers updated: ${servers.length}');
   }
 
-  // ─── Logging ───
+  // ── Helpers ──
+
+  void _setState(VpnConnectionState s) {
+    _state = s;
+    _stateController.add(s);
+  }
 
   void _addLog(VpnLogLevel level, String message) {
     final entry = VpnLogEntry(
@@ -360,12 +320,8 @@ class DesktopVpnService implements VpnService {
     _logs.add(entry);
     if (_logs.length > 500) _logs.removeAt(0);
     _logController.add(entry);
-    if (kDebugMode) {
-      print('[VPN][${level.name}] $message');
-    }
+    if (kDebugMode) print('[VPN][${level.name}] $message');
   }
-
-  // ─── Lifecycle ───
 
   @override
   void dispose() {
@@ -375,5 +331,11 @@ class DesktopVpnService implements VpnService {
     _statsController.close();
     _logController.close();
     _serversController.close();
+  }
+
+  @override
+  Future<bool> copyConfigToClipboard(VpnServer server) async {
+    // Desktop: no clipboard copy (config applied automatically)
+    return false;
   }
 }

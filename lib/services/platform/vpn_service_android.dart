@@ -364,4 +364,10 @@ class AndroidVpnService implements VpnService {
     _statsController.close();
     _logController.close();
   }
+
+  @override
+  Future<bool> copyConfigToClipboard(VpnServer server) async {
+    // Android: no clipboard copy (config applied automatically)
+    return false;
+  }
 }
