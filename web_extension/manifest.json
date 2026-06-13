@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "MaxSpeedVPN",
+  "version": "1.0.0",
+  "description": "MaxSpeedVPN — быстрый и современный VPN клиент. Управление подписками и конфигами.",
+  "permissions": [
+    "storage",
+    "clipboardWrite",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://*/*",
+    "http://*/*"
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "maxspeedvpn@maxspeed.vpn",
+      "strict_min_version": "109.0"
+    }
+  }
+}

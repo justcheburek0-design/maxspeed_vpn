@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_constants.dart';
@@ -102,11 +103,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 const SizedBox(height: 24),
                 _buildSubscriptionCard(context, theme),
                 const SizedBox(height: 24),
-                _buildPowerSection(context, theme),
+                if (kIsWeb) _buildWebDownloadSection(context, theme),
+                if (!kIsWeb) _buildPowerSection(context, theme),
                 const SizedBox(height: 24),
                 _buildServersSection(context, theme),
-                const SizedBox(height: 24),
-                _buildStatsSection(context, theme),
+                if (!kIsWeb) ...[
+                  const SizedBox(height: 24),
+                  _buildStatsSection(context, theme),
+                ],
               ],
             ),
           ),
@@ -737,5 +741,111 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
+  }
+
+  // ─── Web download section ───
+
+  Widget _buildWebDownloadSection(BuildContext ctx, AppTheme theme) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: theme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.outlineVariant),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.cloud_download_outlined, size: 48, color: theme.primary),
+          const SizedBox(height: 12),
+          Text(
+            'Скачайте нативный клиент',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: theme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'VPN в браузере невозможен. Установите приложение для полной защиты.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: theme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            alignment: WrapAlignment.center,
+            children: [
+              _downloadBtn(
+                ctx,
+                theme,
+                'Android',
+                Icons.android,
+                'https://github.com/justcheburek0-design/maxspeed_vpn/releases',
+              ),
+              _downloadBtn(
+                ctx,
+                theme,
+                'Windows',
+                Icons.desktop_windows,
+                'https://github.com/justcheburek0-design/maxspeed_vpn/releases',
+              ),
+              _downloadBtn(
+                ctx,
+                theme,
+                'macOS',
+                Icons.laptop_mac,
+                'https://github.com/justcheburek0-design/maxspeed_vpn/releases',
+              ),
+              _downloadBtn(
+                ctx,
+                theme,
+                'Linux',
+                Icons.computer,
+                'https://github.com/justcheburek0-design/maxspeed_vpn/releases',
+              ),
+              _downloadBtn(
+                ctx,
+                theme,
+                'iOS',
+                Icons.phone_iphone,
+                'https://apps.apple.com',
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Или используйте конфиги из раздела серверов с любым совместимым клиентом',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 11, color: theme.outline),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _downloadBtn(
+    BuildContext ctx,
+    AppTheme theme,
+    String label,
+    IconData icon,
+    String url,
+  ) {
+    return OutlinedButton.icon(
+      onPressed: () async {
+        final uri = Uri.parse(url);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        }
+      },
+      icon: Icon(icon, size: 18),
+      label: Text(label),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: theme.primary,
+        side: BorderSide(color: theme.outlineVariant),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      ),
+    );
   }
 }

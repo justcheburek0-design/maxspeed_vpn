@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MaxSpeedVPN</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="logo">
+        <div class="logo-icon">🛡️</div>
+        <div>
+          <div class="logo-text">MaxSpeedVPN</div>
+          <div class="logo-sub">Быстрый VPN</div>
+        </div>
+      </div>
+      <div class="status-badge" id="statusBadge">● Отключено</div>
+    </div>
+
+    <!-- Subscription section -->
+    <div class="section">
+      <div class="section-title">📦 Подписка</div>
+      <div class="input-group">
+        <input type="text" id="subUrl" placeholder="URL подписки (vmess://, vless://, trojan://)">
+        <button id="loadBtn" class="btn btn-primary">Загрузить</button>
+      </div>
+      <div class="error-msg" id="errorMsg"></div>
+    </div>
+
+    <!-- Servers section -->
+    <div class="section">
+      <div class="section-title">
+        🖥️ Серверы
+        <span class="server-count" id="serverCount">(0)</span>
+      </div>
+      <div class="server-list" id="serverList">
+        <div class="empty-state" id="emptyState">
+          <div class="empty-icon">📭</div>
+          <div>Нет серверов — добавьте подписку</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Download section -->
+    <div class="section">
+      <div class="section-title">⬇️ Скачать клиент</div>
+      <div class="download-grid">
+        <a href="https://github.com/justcheburek0-design/maxspeed_vpn/releases" target="_blank" class="download-btn">
+          <span class="dl-icon">🤖</span>
+          <span>Android</span>
+        </a>
+        <a href="https://github.com/justcheburek0-design/maxspeed_vpn/releases" target="_blank" class="download-btn">
+          <span class="dl-icon">🪟</span>
+          <span>Windows</span>
+        </a>
+        <a href="https://github.com/justcheburek0-design/maxspeed_vpn/releases" target="_blank" class="download-btn">
+          <span class="dl-icon">🍎</span>
+          <span>macOS</span>
+        </a>
+        <a href="https://github.com/justcheburek0-design/maxspeed_vpn/releases" target="_blank" class="download-btn">
+          <span class="dl-icon">🐧</span>
+          <span>Linux</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <a href="https://t.me/max_speedbot" target="_blank">💬 Поддержка</a>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
