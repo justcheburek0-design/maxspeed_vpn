@@ -140,35 +140,23 @@ jobs:
           Write-Output "=== .exe files ==="
           Get-ChildItem -Recurse build\windows\ -Filter *.exe -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName }
           Write-Output "=== .dll files ==="
-          Get-ChildItem -Recurse build\windows\ -Filter *.dll -ErrorAction SilentlyContinue | Select-Object -First 10 ForEach-Object { $_.FullName }
-          Write-Output "=== Full tree ==="
-          Get-ChildItem -Recurse build\windows\ -ErrorAction SilentlyContinue | Select-Object FullName, Length | Format-Table -AutoSize
+          Get-ChildItem -Recurse build\windows\ -Filter *.dll -ErrorAction SilentlyContinue | Select-Object -First 10 | ForEach-Object { $_.FullName }
+          Write-Output "=== runner/Release ==="
+          Get-ChildItem build\windows\x64\runner\Release\ -ErrorAction SilentlyContinue | ForEach-Object { "$($_.FullName) ($($_.Length))" }
 
       - name: Package as zip
-        shell: cmd
+        shell: powershell
         run: |
-          setlocal enabledelayedexpansion
-          set "FOUND="
-          for %%p in (
-            "build\windows\x64\Release\Runner"
-            "build\windows\x64\Release\runner"
-            "build\windows\x64\release\Runner"
-            "build\windows\x64\release\runner"
-          ) do (
-            if not defined FOUND (
-              if exist "%%~p" (
-                set "FOUND=%%~p"
-              )
-            )
-          )
-          if not defined FOUND (
-            echo ERROR: Build output not found
-            dir /s /b build\windows\
-            exit /b 1
-          )
-          echo Found: %FOUND%
-          powershell -Command "Compress-Archive -Path '%FOUND%\*' -DestinationPath '%TEMP%\maxspeed_vpn-windows-x64.zip' -Force"
-          echo ARCHIVE_PATH=%TEMP%\maxspeed_vpn-windows-x64.zip >> %GITHUB_ENV%
+          $src = "build\windows\x64\runner\Release"
+          if (-not (Test-Path $src)) {
+            Write-Output "ERROR: Build output not found at $src"
+            Get-ChildItem -Recurse build\windows\ -ErrorAction SilentlyContinue | Select-Object FullName | Format-Table -AutoSize
+            exit 1
+          }
+          $dest = "$env:TEMP\maxspeed_vpn-windows-x64.zip"
+          Compress-Archive -Path "$src\*" -DestinationPath $dest -Force
+          Write-Output "ARCHIVE_PATH=$dest" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Write-Output "Package size: $((Get-Item $dest).Length / 1MB) MB"
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
