@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths-ignore:
       - '**.md'
-      - '.github/**'
+      - '.github/workflows/*.md'
   workflow_dispatch:
 
 jobs:
@@ -105,6 +105,126 @@ jobs:
           name: linux-release
           path: /tmp/maxspeed_vpn-linux-x64.tar.gz
 
+  # ─── Windows Desktop ───────────────────────────
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.1'
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Enable Windows desktop
+        run: flutter config --enable-windows-desktop
+
+      - name: Build Windows
+        run: flutter build windows --release --no-tree-shake-icons
+
+      - name: Package as zip
+        run: |
+          cd build/windows/x64/release/runner
+          Compress-Archive -Path * -DestinationPath /tmp/maxspeed_vpn-windows-x64.zip -Force
+          $size = (Get-Item /tmp/maxspeed_vpn-windows-x64.zip).Length / 1MB
+          echo "Package size: $([math]::Round($size, 1)) MB"
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release
+          path: /tmp/maxspeed_vpn-windows-x64.zip
+
+  # ─── macOS Desktop ─────────────────────────────
+  build-macos:
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.1'
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Enable macOS desktop
+        run: flutter config --enable-macos-desktop
+
+      - name: Build macOS
+        run: flutter build macos --release --no-tree-shake-icons
+
+      - name: Package as dmg
+        run: |
+          cd build/macos/Build/Products/Release
+          hdiutil create -volname "MaxSpeedVPN" -srcfolder maxspeed_vpn.app -ov -format UDZO /tmp/maxspeed_vpn-macos.dmg
+          echo "Package size: $(du -h /tmp/maxspeed_vpn-macos.dmg | cut -f1)"
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-release
+          path: /tmp/maxspeed_vpn-macos.dmg
+
+  # ─── iOS ───────────────────────────────────────
+  build-ios:
+    runs-on: macos-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.1'
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Install CocoaPods
+        run: sudo gem install cocoapods
+
+      - name: Install iOS deps
+        run: |
+          cd ios
+          pod install --repo-update
+          cd ..
+
+      - name: Build iOS (no codesign)
+        run: flutter build ios --release --no-tree-shake-icons --no-codesign
+
+      - name: Package as zip
+        run: |
+          mkdir -p /tmp/ios_payload
+          cp -r build/ios/iphoneos/Runner.app /tmp/ios_payload/Payload/
+          cd /tmp
+          zip -r /tmp/maxspeed_vpn-ios.zip Payload
+          echo "Package size: $(du -h /tmp/maxspeed_vpn-ios.zip | cut -f1)"
+
+      - name: Upload iOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-release
+          path: /tmp/maxspeed_vpn-ios.zip
+
   # ─── Web ───────────────────────────────────────
   build-web:
     runs-on: ubuntu-latest
@@ -145,7 +265,7 @@ jobs:
 
   # ─── Release ───────────────────────────────────
   release:
-    needs: [build-android, build-linux, build-web]
+    needs: [build-android, build-linux, build-windows, build-macos, build-ios, build-web]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     permissions:
@@ -181,17 +301,78 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Read release notes
+        id: notes
+        run: |
+          # Use RELEASE.md as body if it has content beyond the placeholder header
+          if [ -f RELEASE.md ]; then
+            FIRST_LINE=$(head -1 RELEASE.md)
+            if [ "$FIRST_LINE" = "# Release Notes" ]; then
+              # Check if there's real content beyond the placeholder
+              REAL_CONTENT=$(sed '1,/^---$/{ /^# Release Notes/d; /^> \*\*v/d; /^$/d; /^Сюда пиши/d; /^## Формат/d; /^```$/d; p; }' RELEASE.md | grep -v '^$' | head -1)
+              if [ -n "$REAL_CONTENT" ]; then
+                delimiter="ghadelimiter_$(openssl rand -hex 16)"
+                echo "notes<<$delimiter" >> $GITHUB_OUTPUT
+                sed '1,/^---$/d' RELEASE.md | sed '1d' >> $GITHUB_OUTPUT
+                echo "$delimiter" >> $GITHUB_OUTPUT
+                echo "has_notes=true" >> $GITHUB_OUTPUT
+              else
+                echo "has_notes=false" >> $GITHUB_OUTPUT
+              fi
+            else
+              delimiter="ghadelimiter_$(openssl rand -hex 16)"
+              echo "notes<<$delimiter" >> $GITHUB_OUTPUT
+              cat RELEASE.md >> $GITHUB_OUTPUT
+              echo "$delimiter" >> $GITHUB_OUTPUT
+              echo "has_notes=true" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "has_notes=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Create Release
         if: steps.check.outputs.exists == 'false'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
           name: MaxSpeedVPN v${{ steps.version.outputs.version }}
+          body: ${{ steps.notes.outputs.notes || ' ' }}
           files: |
             artifacts/apk-release/app-release.apk
             artifacts/linux-release/maxspeed_vpn-linux-x64.tar.gz
+            artifacts/windows-release/maxspeed_vpn-windows-x64.zip
+            artifacts/macos-release/maxspeed_vpn-macos.dmg
+            artifacts/ios-release/maxspeed_vpn-ios.zip
             artifacts/web-release/maxspeed_vpn-web.tar.gz
-          generate_release_notes: true
           fail_on_unmatched_files: false
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Clear RELEASE.md and commit
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          cat > RELEASE.md << 'TEMPLATE'
+          # Release Notes
+
+          > Сюда добавляются изменения для следующего релиза
+
+          ## 🚀 Новое
+          -
+
+          ## Исправления
+          -
+
+          ## ⚡ Улучшения
+          -
+
+          ## Технические детали
+          -
+          TEMPLATE
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add RELEASE.md
+          git commit -m "docs: reset release notes after publishing v${{ steps.version.outputs.version }}"
+          git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
