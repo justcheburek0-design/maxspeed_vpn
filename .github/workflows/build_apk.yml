@@ -108,7 +108,7 @@ jobs:
   # ─── Windows Desktop ───────────────────────────
   build-windows:
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
@@ -132,16 +132,36 @@ jobs:
 
       - name: Package as zip
         run: |
-          cd build/windows/x64/release/runner
-          Compress-Archive -Path * -DestinationPath /tmp/maxspeed_vpn-windows-x64.zip -Force
-          $size = (Get-Item /tmp/maxspeed_vpn-windows-x64.zip).Length / 1MB
-          echo "Package size: $([math]::Round($size, 1)) MB"
+          $paths = @(
+            "build/windows/x64/Release/Runner",
+            "build/windows/x64/Release/runner",
+            "build/windows/x64/release/Runner",
+            "build/windows/x64/release/runner"
+          )
+          $found = $null
+          foreach ($p in $paths) {
+            if (Test-Path $p) {
+              $found = $p
+              break
+            }
+          }
+          if (-not $found) {
+            Write-Host "ERROR: Could not find build output. Contents of build/windows/x64:"
+            Get-ChildItem -Path "build/windows/x64" -Recurse -Depth 3 | Select-Object FullName
+            exit 1
+          }
+          Write-Host "Found build output at: $found"
+          $dest = "$env:TEMP\maxspeed_vpn-windows-x64.zip"
+          Compress-Archive -Path "$found\*" -DestinationPath $dest -Force
+          $size = (Get-Item $dest).Length / 1MB
+          Write-Host "Package size: $([math]::Round($size, 1)) MB"
+          echo "ARCHIVE_PATH=$dest" >> $env:GITHUB_ENV
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-release
-          path: /tmp/maxspeed_vpn-windows-x64.zip
+          path: ${{ env.ARCHIVE_PATH }}
 
   # ─── macOS Desktop ─────────────────────────────
   build-macos:
@@ -170,8 +190,21 @@ jobs:
 
       - name: Package as dmg
         run: |
-          cd build/macos/Build/Products/Release
-          hdiutil create -volname "MaxSpeedVPN" -srcfolder maxspeed_vpn.app -ov -format UDZO /tmp/maxspeed_vpn-macos.dmg
+          $appPaths = @(
+            "build/macos/Build/Products/Release/maxspeed_vpn.app",
+            "build/macos/Build/Products/Release/Runner.app"
+          )
+          $app = $null
+          foreach ($p in $appPaths) {
+            if (Test-Path $p) { $app = $p; break }
+          }
+          if (-not $app) {
+            Write-Host "ERROR: .app not found. Contents:"
+            Get-ChildItem -Path "build/macos/Build/Products/Release" -Recurse -Depth 2 | Select-Object FullName
+            exit 1
+          }
+          Write-Host "Found app at: $app"
+          hdiutil create -volname "MaxSpeedVPN" -srcfolder "$app" -ov -format UDZO /tmp/maxspeed_vpn-macos.dmg
           echo "Package size: $(du -h /tmp/maxspeed_vpn-macos.dmg | cut -f1)"
 
       - name: Upload macOS artifact
@@ -249,8 +282,22 @@ jobs:
 
       - name: Package as zip
         run: |
-          mkdir -p /tmp/ios_payload
-          cp -r build/ios/iphoneos/Runner.app /tmp/ios_payload/Payload/
+          $runnerPaths = @(
+            "build/ios/iphoneos/Runner.app",
+            "build/ios/Release-iphoneos/Runner.app"
+          )
+          $runner = $null
+          foreach ($p in $runnerPaths) {
+            if (Test-Path $p) { $runner = $p; break }
+          }
+          if (-not $runner) {
+            Write-Host "ERROR: Runner.app not found. Contents:"
+            Get-ChildItem -Path "build/ios" -Recurse -Depth 3 | Select-Object FullName
+            exit 1
+          }
+          Write-Host "Found Runner.app at: $runner"
+          mkdir -p /tmp/ios_payload/Payload
+          cp -r "$runner" /tmp/ios_payload/Payload/
           cd /tmp
           zip -r /tmp/maxspeed_vpn-ios.zip Payload
           echo "Package size: $(du -h /tmp/maxspeed_vpn-ios.zip | cut -f1)"
