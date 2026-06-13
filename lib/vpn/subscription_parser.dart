@@ -1,5 +1,6 @@
 import 'dart:convert';
 import '../../data/models/vpn_models.dart';
+import '../../data/models/country_flag.dart';
 import 'vless_parser.dart';
 
 class SubscriptionParser {
@@ -32,7 +33,11 @@ class SubscriptionParser {
       } else if (link.startsWith('ss://')) {
         server = _parseShadowsocks(link);
       }
-      if (server != null) servers.add(server);
+      if (server != null) {
+        final flag = CountryFlagUtil.extractFlag(server.name);
+        final cleanName = flag != null ? CountryFlagUtil.stripFlag(server.name) : server.name;
+        servers.add(server.copyWith(flag: flag, name: cleanName));
+      }
     }
     return servers;
   }

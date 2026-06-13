@@ -92,17 +92,18 @@ jobs:
       - name: Build Linux
         run: flutter build linux --release --no-tree-shake-icons
 
-      - name: Package as tar.gz
+      - name: Package Linux binary
         run: |
-          cd build/linux/x64/release/bundle
-          tar -czf /tmp/maxspeed_vpn-linux-x64.tar.gz *
-          echo "Package size: $(du -h /tmp/maxspeed_vpn-linux-x64.tar.gz | cut -f1)"
+          BIN="build/linux/x64/release/bundle/maxspeed_vpn"
+          cp "$BIN" /tmp/maxspeed_vpn-linux-x64
+          chmod +x /tmp/maxspeed_vpn-linux-x64
+          echo "Binary size: $(du -h /tmp/maxspeed_vpn-linux-x64 | cut -f1)"
 
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
           name: linux-release
-          path: /tmp/maxspeed_vpn-linux-x64.tar.gz
+          path: /tmp/maxspeed_vpn-linux-x64
 
   # ─── Windows Desktop ───────────────────────────
   build-windows:
@@ -375,17 +376,11 @@ jobs:
       - name: Build Web
         run: flutter build web --release --no-tree-shake-icons
 
-      - name: Package web build
-        run: |
-          cd build/web
-          tar -czf /tmp/maxspeed_vpn-web.tar.gz *
-          echo "Package size: $(du -h /tmp/maxspeed_vpn-web.tar.gz | cut -f1)"
-
       - name: Upload Web artifact
         uses: actions/upload-artifact@v4
         with:
           name: web-release
-          path: /tmp/maxspeed_vpn-web.tar.gz
+          path: build/web
 
   # ─── Release ───────────────────────────────────
   release:
@@ -463,12 +458,11 @@ jobs:
           body: ${{ steps.notes.outputs.notes || ' ' }}
           files: |
             artifacts/apk-release/app-release.apk
-            artifacts/linux-release/maxspeed_vpn-linux-x64.tar.gz
+            artifacts/linux-release/maxspeed_vpn-linux-x64
             artifacts/windows-release/maxspeed_vpn-windows-x64.zip
             artifacts/macos-arm64-release/maxspeed_vpn-macos-arm64.dmg
             artifacts/macos-x86_64-release/maxspeed_vpn-macos-x86_64.dmg
             artifacts/ios-release/maxspeed_vpn-ios.zip
-            artifacts/web-release/maxspeed_vpn-web.tar.gz
           fail_on_unmatched_files: false
           make_latest: true
         env:
