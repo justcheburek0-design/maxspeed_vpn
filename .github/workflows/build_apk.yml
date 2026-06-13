@@ -164,8 +164,8 @@ jobs:
           name: windows-release
           path: ${{ env.ARCHIVE_PATH }}
 
-  # ─── macOS Desktop ─────────────────────────────
-  build-macos:
+  # ─── macOS Desktop (Apple Silicon) ─────────────
+  build-macos-arm64:
     runs-on: macos-latest
     timeout-minutes: 45
 
@@ -201,14 +201,60 @@ jobs:
             exit 1
           fi
           echo "Found app at: $APP"
-          hdiutil create -volname "MaxSpeedVPN" -srcfolder "$APP" -ov -format UDZO /tmp/maxspeed_vpn-macos.dmg
-          echo "Package size: $(du -h /tmp/maxspeed_vpn-macos.dmg | cut -f1)"
+          hdiutil create -volname "MaxSpeedVPN" -srcfolder "$APP" -ov -format UDZO /tmp/maxspeed_vpn-macos-arm64.dmg
+          echo "Package size: $(du -h /tmp/maxspeed_vpn-macos-arm64.dmg | cut -f1)"
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
-          name: macos-release
-          path: /tmp/maxspeed_vpn-macos.dmg
+          name: macos-arm64-release
+          path: /tmp/maxspeed_vpn-macos-arm64.dmg
+
+  # ─── macOS Desktop (Intel x86_64) ──────────────
+  build-macos-x86_64:
+    runs-on: macos-13
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.1'
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Enable macOS desktop
+        run: flutter config --enable-macos-desktop
+
+      - name: Build macOS
+        run: flutter build macos --release --no-tree-shake-icons
+
+      - name: Package as dmg
+        run: |
+          APP=""
+          for p in "build/macos/Build/Products/Release/maxspeed_vpn.app" "build/macos/Build/Products/Release/Runner.app"; do
+            if [ -d "$p" ]; then APP="$p"; break; fi
+          done
+          if [ -z "$APP" ]; then
+            echo "ERROR: .app not found. Contents:"
+            find build/macos/Build/Products/Release -maxdepth 2 -type d 2>/dev/null
+            exit 1
+          fi
+          echo "Found app at: $APP"
+          hdiutil create -volname "MaxSpeedVPN" -srcfolder "$APP" -ov -format UDZO /tmp/maxspeed_vpn-macos-x86_64.dmg
+          echo "Package size: $(du -h /tmp/maxspeed_vpn-macos-x86_64.dmg | cut -f1)"
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-x86_64-release
+          path: /tmp/maxspeed_vpn-macos-x86_64.dmg
 
   # ─── iOS ───────────────────────────────────────
   build-ios:
@@ -343,7 +389,7 @@ jobs:
 
   # ─── Release ───────────────────────────────────
   release:
-    needs: [build-android, build-linux, build-windows, build-macos, build-ios, build-web]
+    needs: [build-android, build-linux, build-windows, build-macos-arm64, build-macos-x86_64, build-ios, build-web]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     permissions:
@@ -419,7 +465,8 @@ jobs:
             artifacts/apk-release/app-release.apk
             artifacts/linux-release/maxspeed_vpn-linux-x64.tar.gz
             artifacts/windows-release/maxspeed_vpn-windows-x64.zip
-            artifacts/macos-release/maxspeed_vpn-macos.dmg
+            artifacts/macos-arm64-release/maxspeed_vpn-macos-arm64.dmg
+            artifacts/macos-x86_64-release/maxspeed_vpn-macos-x86_64.dmg
             artifacts/ios-release/maxspeed_vpn-ios.zip
             artifacts/web-release/maxspeed_vpn-web.tar.gz
           fail_on_unmatched_files: false
