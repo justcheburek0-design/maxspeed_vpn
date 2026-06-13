@@ -217,26 +217,77 @@ class AndroidVpnService implements VpnService {
 
       final config = SingboxConfigGenerator.generate(server);
       _addLog(VpnLogLevel.info, 'Подключение к ${server.name} (${server.address}:${server.port})');
-      await _singbox.saveConfig(config);
+      _addLog(VpnLogLevel.info, 'Конфиг (${config.length} bytes): ${config.length > 500 ? '${config.substring(0, 500)}...' : config}');
 
-      final started = await _singbox.startVPN().timeout(
-        const Duration(seconds: 60),
-        onTimeout: () {
-          _addLog(VpnLogLevel.error, 'Таймаут запуска VPN (60с)');
-          return false;
-        },
-      );
+      try {
+        await _singbox.saveConfig(config);
+        _addLog(VpnLogLevel.info, 'saveConfig OK');
+      } catch (e) {
+        _addLog(VpnLogLevel.error, 'saveConfig FAILED: $e');
+        _state = VpnConnectionState.error;
+        _activeServer = null;
+        _stateController.add(_state);
+        return false;
+      }
+
+      bool started;
+      try {
+        started = await _singbox.startVPN().timeout(
+          const Duration(seconds: 60),
+          onTimeout: () {
+            _addLog(VpnLogLevel.error, 'startVPN таймаут (60с)');
+            return false;
+          },
+        );
+        _addLog(VpnLogLevel.info, 'startVPN вернул: $started');
+      } catch (e) {
+        _addLog(VpnLogLevel.error, 'startVPN EXCEPTION: $e');
+        started = false;
+      }
 
       if (!started) {
         _state = VpnConnectionState.error;
         _activeServer = null;
         _stateController.add(_state);
         _addLog(VpnLogLevel.error, 'Не удалось запустить VPN');
-      } else {
-        _addLog(VpnLogLevel.info, 'VPN сервис запущен');
+        return false;
       }
 
-      return started;
+      // Ждём подтверждения что сервис реально стартанул (statusCode == 2 = Started)
+      _addLog(VpnLogLevel.info, 'Ожидание статуса Started...');
+      final completer = Completer<VpnConnectionState>();
+      late StreamSubscription sub;
+      sub = _stateController.stream.listen((state) {
+        if (state == VpnConnectionState.connected) {
+          if (!completer.isCompleted) completer.complete(state);
+          sub.cancel();
+        } else if (state == VpnConnectionState.disconnected) {
+          if (!completer.isCompleted) completer.complete(state);
+          sub.cancel();
+        }
+      });
+
+      try {
+        final confirmedState = await completer.future.timeout(
+          const Duration(seconds: 15),
+          onTimeout: () {
+            _addLog(VpnLogLevel.error, 'Таймаут ожидания статуса Started (15с)');
+            return VpnConnectionState.disconnected;
+          },
+        );
+        if (confirmedState != VpnConnectionState.connected) {
+          _addLog(VpnLogLevel.error, 'VPN не перешёл в connected, состояние: $confirmedState');
+          _state = VpnConnectionState.error;
+          _activeServer = null;
+          _stateController.add(_state);
+          return false;
+        }
+        _addLog(VpnLogLevel.info, 'VPN подтверждён: connected');
+      } finally {
+        sub.cancel();
+      }
+
+      return true;
     } catch (e) {
       _state = VpnConnectionState.error;
       _activeServer = null;

@@ -304,7 +304,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             key: ValueKey(_state),
             children: [
               Text(
-                isConnected ? 'Подключено' : 'Отключено',
+                _state == VpnConnectionState.error
+                    ? 'Ошибка — проверьте настройки'
+                    : isConnected
+                        ? 'Подключено'
+                        : _state == VpnConnectionState.connecting
+                            ? 'Подключение...'
+                            : 'Отключено',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
