@@ -76,7 +76,9 @@ import NetworkExtension
 
       let protocolConfig = NETunnelProviderProtocol()
       protocolConfig.providerBundleIdentifier = "com.maxspeedvpn.packetTunnel"
-      protocolConfig.serverAddress = (args["address"] as? String) + ":" + String(describing: args["port"] ?? "")
+      let address = args["address"] as? String ?? ""
+      let port = args["port"].map { "\($0)" } ?? ""
+      protocolConfig.serverAddress = address + ":" + port
       manager.protocolConfiguration = protocolConfig
       manager.localizedDescription = "MaxSpeedVPN"
       manager.isEnabled = true

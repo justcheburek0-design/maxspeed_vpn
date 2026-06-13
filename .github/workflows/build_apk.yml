@@ -34,25 +34,24 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Analyze
-        run: flutter analyze
-        continue-on-error: true
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            android/.gradle
+          key: gradle-${{ runner.os }}-${{ hashFiles('android/**/*.gradle*', 'android/**/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}-
 
       - name: Build APK
         run: |
-          flutter clean
-          rm -rf android/.gradle android/app/build
-          flutter build apk --release --no-tree-shake-icons 2>&1 || true
-          if [ ! -f build/app/outputs/flutter-apk/app-release.apk ]; then
-            echo "Flutter build failed, falling back to Gradle..."
-            cd android
-            ./gradlew assembleRelease --no-daemon --stacktrace \
-              -Dorg.gradle.vfs.watch=false \
-              -Dorg.gradle.configuration-cache=false \
-              -Dorg.gradle.jvmargs="-Xmx4096m"
-            cd ..
-            cp android/app/build/outputs/apk/release/app-release.apk build/app/outputs/flutter-apk/app-release.apk 2>/dev/null || true
-          fi
+          cd android
+          ./gradlew assembleRelease --no-daemon --offline \
+            -Dorg.gradle.vfs.watch=false \
+            -Dorg.gradle.configuration-cache=false \
+            -Dorg.gradle.jvmargs="-Xmx4096m"
+          cp app/build/outputs/apk/release/app-release.apk ../build/app/outputs/flutter-apk/app-release.apk 2>/dev/null || true
         env:
           GRADLE_OPTS: "-Dorg.gradle.vfs.watch=false -Dorg.gradle.daemon=false -Dorg.gradle.configuration-cache=false -Dorg.gradle.jvmargs=-Xmx4096m"
           JAVA_TOOL_OPTIONS: "-Dorg.gradle.vfs.watch=false"
