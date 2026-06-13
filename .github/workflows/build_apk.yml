@@ -140,7 +140,15 @@ jobs:
           ninja --version
 
       - name: Build Windows
-        run: flutter build windows --release --no-tree-shake-icons
+        shell: cmd
+        run: |
+          flutter build windows --release --no-tree-shake-icons
+          echo "=== Build output ==="
+          dir /s /b build\windows\*.exe 2>nul
+          dir /s /b build\windows\*.dll 2>nul
+          dir /s /b build\windows\runner\*.exe 2>nul
+          echo "=== Full tree ==="
+          dir /s /b build\windows\
 
       - name: Package as zip
         shell: cmd
@@ -176,8 +184,8 @@ jobs:
 
   # ─── macOS Desktop ─────────────────────────────
   build-macos:
-    runs-on: macos-latest
-    timeout-minutes: 30
+    runs-on: macos-13
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
