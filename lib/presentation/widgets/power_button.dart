@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../core/theme/app_themes.dart';
 import '../../data/models/vpn_models.dart';
 
@@ -99,7 +100,10 @@ class _PowerButtonState extends State<PowerButton> with TickerProviderStateMixin
         widget.state == VpnConnectionState.reconnecting;
 
     return GestureDetector(
-      onTap: widget.onPressed,
+      onTap: () {
+        HapticFeedback.mediumImpact();
+        widget.onPressed();
+      },
       child: AnimatedBuilder(
         animation: Listenable.merge([_pulseController, _rotationController, _glowController]),
         builder: (context, child) {

@@ -74,28 +74,14 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
+class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
   late final VpnService _vpnService;
-  late final PageController _pageController;
-  late AnimationController _capsuleAnimController;
-  late Animation<double> _capsuleAnimation;
 
   @override
   void initState() {
     super.initState();
     _vpnService = createVpnService();
-    _pageController = PageController(initialPage: 0);
-    _capsuleAnimController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 400),
-    );
-    _capsuleAnimation = CurvedAnimation(
-      parent: _capsuleAnimController,
-      curve: Curves.easeInOutCubic,
-    );
-    _capsuleAnimController.forward(); // start at position 0 (left)
-
     if (!kIsWeb) {
       DeepLinkHandler.init();
       DeepLinkHandler.onLink.listen(_handleDeepLink);
@@ -125,32 +111,22 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   @override
   void dispose() {
     _vpnService.dispose();
-    _pageController.dispose();
-    _capsuleAnimController.dispose();
     super.dispose();
   }
 
   void _switchTab(int index) {
     if (index == _currentIndex) return;
-    // Haptic feedback
     HapticFeedback.lightImpact();
     setState(() => _currentIndex = index);
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 350),
-      curve: Curves.easeInOutCubic,
-    );
-    // Animate capsule
-    if (index == 1) {
-      _capsuleAnimController.forward();
-    } else {
-      _capsuleAnimController.reverse();
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = GlassTheme.of(context);
+    final screens = <Widget>[
+      HomeScreen(vpnService: _vpnService),
+      SettingsScreen(vpnService: _vpnService, onThemeChanged: widget.onThemeChanged),
+    ];
 
     return Scaffold(
       backgroundColor: theme.bgPrimary,
@@ -162,37 +138,16 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               children: [
                 _buildSideNav(theme, constraints.maxWidth),
                 Expanded(
-                  child: PageView(
-                    controller: _pageController,
-                    physics: const NeverScrollableScrollPhysics(),
-                    children: [
-                      HomeScreen(vpnService: _vpnService),
-                      SettingsScreen(vpnService: _vpnService, onThemeChanged: widget.onThemeChanged),
-                    ],
-                  ),
+                  child: IndexedStack(index: _currentIndex, children: screens),
                 ),
               ],
             );
           }
-          // Mobile layout: PageView + animated bottom nav
+          // Mobile layout: content + BottomNavigationBar
           return Column(
             children: [
               Expanded(
-                child: PageView(
-                  controller: _pageController,
-                  onPageChanged: (index) {
-                    setState(() => _currentIndex = index);
-                    if (index == 1) {
-                      _capsuleAnimController.forward();
-                    } else {
-                      _capsuleAnimController.reverse();
-                    }
-                  },
-                  children: [
-                    HomeScreen(vpnService: _vpnService),
-                    SettingsScreen(vpnService: _vpnService, onThemeChanged: widget.onThemeChanged),
-                  ],
-                ),
+                child: IndexedStack(index: _currentIndex, children: screens),
               ),
               _buildBottomNav(theme),
             ],
@@ -359,44 +314,10 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(34),
-          child: Stack(
+          child: Row(
             children: [
-              // Animated capsule background
-              AnimatedBuilder(
-                animation: _capsuleAnimation,
-                builder: (context, child) {
-                  return LayoutBuilder(
-                    builder: (context, constraints) {
-                      final capsuleWidth = constraints.maxWidth / 2;
-                      final offset = _capsuleAnimation.value * capsuleWidth;
-                      return Positioned(
-                        left: offset,
-                        top: 6,
-                        bottom: 6,
-                        width: capsuleWidth,
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 6),
-                          decoration: BoxDecoration(
-                            color: theme.primary.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(28),
-                            border: Border.all(
-                              color: theme.primary.withValues(alpha: 0.25),
-                              width: 1,
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
-              // Nav items on top
-              Row(
-                children: [
-                  _navItem(0, Icons.home_rounded, 'Главная', theme),
-                  _navItem(1, Icons.settings_rounded, 'Настройки', theme),
-                ],
-              ),
+              _navItem(0, Icons.home_rounded, 'Главная', theme),
+              _navItem(1, Icons.settings_rounded, 'Настройки', theme),
             ],
           ),
         ),
@@ -414,11 +335,20 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         color: Colors.transparent,
         child: InkWell(
           onTap: () => _switchTab(index),
-          splashColor: Colors.transparent,
-          highlightColor: Colors.transparent,
+          splashColor: theme.primary.withValues(alpha: 0.1),
+          highlightColor: theme.primary.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(28),
-          child: Container(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutCubic,
+            margin: const EdgeInsets.all(6),
             padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? theme.primary.withValues(alpha: 0.1)
+                  : Colors.transparent,
+              borderRadius: const BorderRadius.all(Radius.circular(28)),
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
@@ -433,7 +363,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                   label,
                   style: TextStyle(
                     fontSize: 10,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                    fontWeight: FontWeight.w400,
                     color: isSelected ? activeColor : inactiveColor,
                   ),
                   overflow: TextOverflow.ellipsis,
