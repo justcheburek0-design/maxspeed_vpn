@@ -14,7 +14,6 @@
 | **Пакет** | `ru.maxspeed.maxspeed_vpn` |
 | **Исходный код** | [github.com/maxspeed-vpn/maxspeed_vpn](https://github.com/maxspeed-vpn/maxspeed_vpn) |
 | **Telegram** | [t.me/maxspeed_vpn](https://t.me/maxspeed_vpn) |
-| **Поддержка** | [email removed] |
 
 ---
 
