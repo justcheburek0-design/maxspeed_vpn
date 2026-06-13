@@ -138,11 +138,11 @@ jobs:
         run: |
           flutter build windows --release --no-tree-shake-icons
           Write-Output "=== .exe files ==="
-          Get-ChildItem -Recurse build\windows\ -Filter *.exe | ForEach-Object { $_.FullName }
+          Get-ChildItem -Recurse build\windows\ -Filter *.exe -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName }
           Write-Output "=== .dll files ==="
-          Get-ChildItem -Recurse build\windows\ -Filter *.dll | Select-Object -First 10 ForEach-Object { $_.FullName }
+          Get-ChildItem -Recurse build\windows\ -Filter *.dll -ErrorAction SilentlyContinue | Select-Object -First 10 ForEach-Object { $_.FullName }
           Write-Output "=== Full tree ==="
-          Get-ChildItem -Recurse build\windows\ | Select-Object FullName, Length | Format-Table -AutoSize
+          Get-ChildItem -Recurse build\windows\ -ErrorAction SilentlyContinue | Select-Object FullName, Length | Format-Table -AutoSize
 
       - name: Package as zip
         shell: cmd
