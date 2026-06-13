@@ -8,7 +8,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_themes.dart';
 import '../../data/models/vpn_models.dart';
 import '../../services/vpn_service_interface.dart';
-import '../../vpn/subscription_parser.dart';
+import '../../services/update_checker_native.dart';
 
 class SettingsScreen extends StatefulWidget {
   final VpnService vpnService;
@@ -173,10 +173,7 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
             side: BorderSide(color: theme.outlineVariant),
           ),
           child: Column(children: [
-            FutureBuilder<String>(
-              future: PackageInfo.fromPlatform().then((p) => p.version),
-              builder: (ctx, snap) => _infoTile(theme, 'Версия', snap.data ?? '—'),
-            ),
+            _buildVersionTile(theme),
             Divider(color: theme.outlineVariant, height: 1, indent: 16, endIndent: 16),
             _infoTile(theme, 'Протокол', SettingsConstants.protocolDisplay),
             Divider(color: theme.outlineVariant, height: 1, indent: 16, endIndent: 16),
@@ -469,6 +466,99 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
         value,
         style: TextStyle(color: theme.onSurface, fontWeight: FontWeight.w500, fontSize: 14),
       ),
+    );
+  }
+
+  Widget _buildVersionTile(AppTheme theme) {
+    return FutureBuilder<String>(
+      future: PackageInfo.fromPlatform().then((p) => p.version),
+      builder: (ctx, snap) {
+        final version = snap.data ?? '—';
+        return StreamBuilder<UpdateDownloadState>(
+          stream: UpdateManager.instance.progressStream,
+          initialData: UpdateManager.instance.state,
+          builder: (context, updateSnap) {
+            final state = updateSnap.data ?? UpdateManager.instance.state;
+            final hasUpdate = UpdateManager.instance.availableUpdate != null;
+            final isReady = UpdateManager.instance.isUpdateReady;
+            final isDownloading = state.status == 'downloading' || state.status == 'paused';
+
+            String trailing = version;
+            Widget? trailingWidget;
+            VoidCallback? onTap;
+
+            if (isDownloading) {
+              final pct = state.progress > 0 ? (state.progress * 100).toStringAsFixed(0) : null;
+              trailingWidget = Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 16, height: 16,
+                    child: CircularProgressIndicator(
+                      value: state.progress > 0 ? state.progress : null,
+                      strokeWidth: 2,
+                      color: theme.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(pct != null ? '$pct%' : 'Скачивание...',
+                      style: TextStyle(color: theme.primary, fontSize: 13)),
+                ],
+              );
+              onTap = () {
+                // Show download dialog
+                UpdateManager.instance.downloadAndInstall(context);
+              };
+            } else if (isReady) {
+              trailingWidget = Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: theme.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: theme.primary.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.system_update, size: 14, color: theme.primary),
+                    const SizedBox(width: 4),
+                    Text('Установить', style: TextStyle(color: theme.primary, fontSize: 12, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              );
+              onTap = () async {
+                final apk = await UpdateManager.instance.getDownloadedApk(
+                    UpdateManager.instance.availableUpdate!.version);
+                if (apk != null && context.mounted) {
+                  UpdateManager.instance.downloadAndInstall(context);
+                }
+              };
+            } else if (hasUpdate) {
+              trailingWidget = Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: theme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text('v${UpdateManager.instance.availableUpdate!.version} →',
+                    style: TextStyle(color: theme.primary, fontSize: 12, fontWeight: FontWeight.w600)),
+              );
+              onTap = () {
+                UpdateManager.instance.downloadAndInstall(context);
+              };
+            }
+
+            return ListTile(
+              onTap: onTap,
+              title: Text('Версия', style: TextStyle(color: theme.onSurfaceVariant, fontSize: 14)),
+              trailing: trailingWidget ?? Text(
+                trailing,
+                style: TextStyle(color: theme.onSurface, fontWeight: FontWeight.w500, fontSize: 14),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 

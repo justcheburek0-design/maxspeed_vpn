@@ -9,7 +9,7 @@ import 'presentation/screens/home_screen.dart';
 import 'presentation/screens/settings_screen.dart';
 import 'services/vpn_service_factory.dart';
 import 'services/vpn_service_interface.dart';
-import 'services/update_api.dart' as update_api;
+import 'services/update_checker_native.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -86,16 +86,8 @@ class _MainScreenState extends State<MainScreen> {
       DeepLinkHandler.init();
       DeepLinkHandler.onLink.listen(_handleDeepLink);
       _checkInitialLink();
-      _checkForUpdates();
+      UpdateManager.instance.initialize();
     }
-  }
-
-  Future<void> _checkForUpdates() async {
-    await Future.delayed(const Duration(seconds: 3));
-    if (!mounted) return;
-    try {
-      await update_api.checkAndPrompt(context);
-    } catch (_) {}
   }
 
   Future<void> _checkInitialLink() async {

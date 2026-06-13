@@ -5,6 +5,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_themes.dart';
 import '../../data/models/vpn_models.dart';
 import '../../services/vpn_service_interface.dart';
+import '../../services/update_checker_native.dart';
 import '../widgets/power_button.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -102,6 +103,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 _buildHeader(context, theme),
                 const SizedBox(height: 24),
                 _buildSubscriptionCard(context, theme),
+                const SizedBox(height: 24),
+                _buildUpdateBanner(context, theme),
                 const SizedBox(height: 24),
                 if (kIsWeb) _buildWebDownloadSection(context, theme),
                 if (!kIsWeb) _buildPowerSection(context, theme),
@@ -285,6 +288,114 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildUpdateBanner(BuildContext ctx, AppTheme theme) {
+    return StreamBuilder<UpdateDownloadState>(
+      stream: UpdateManager.instance.progressStream,
+      initialData: UpdateManager.instance.state,
+      builder: (context, snapshot) {
+        final state = snapshot.data ?? UpdateManager.instance.state;
+        final hasUpdate = UpdateManager.instance.availableUpdate != null;
+        final isReady = UpdateManager.instance.isUpdateReady;
+        final isDownloading = state.status == 'downloading' || state.status == 'paused';
+
+        if (!hasUpdate && !isReady && !isDownloading) return const SizedBox.shrink();
+
+        String title;
+        String? subtitle;
+        IconData icon;
+        Color accentColor;
+        VoidCallback? onTap;
+
+        if (isDownloading) {
+          final pct = state.progress > 0 ? (state.progress * 100).toStringAsFixed(0) : null;
+          title = pct != null ? 'Скачивание $pct%' : 'Скачивание...';
+          if (state.status == 'paused') {
+            subtitle = 'Ожидание подключения...';
+          } else if (state.totalBytes > 0) {
+            final mb = (state.receivedBytes / 1024 / 1024).toStringAsFixed(1);
+            final totalMb = (state.totalBytes / 1024 / 1024).toStringAsFixed(1);
+            subtitle = '$mb / $totalMb MB';
+          }
+          icon = Icons.downloading_rounded;
+          accentColor = theme.primary;
+          onTap = () => UpdateManager.instance.downloadAndInstall(context);
+        } else if (isReady) {
+          final v = UpdateManager.instance.availableUpdate?.version ?? '';
+          title = 'Обновление готово — v$v';
+          subtitle = 'Нажмите для установки';
+          icon = Icons.system_update_rounded;
+          accentColor = theme.success;
+          onTap = () => UpdateManager.instance.downloadAndInstall(context);
+        } else {
+          // Has update but not downloading yet
+          final v = UpdateManager.instance.availableUpdate?.version ?? '';
+          title = 'Доступна версия $v';
+          subtitle = 'Нажмите для обновления';
+          icon = Icons.new_releases_outlined;
+          accentColor = theme.primary;
+          onTap = () => UpdateManager.instance.downloadAndInstall(context);
+        }
+
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: accentColor.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: accentColor.withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: accentColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(icon, color: accentColor, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title,
+                            style: TextStyle(
+                                fontSize: 14, fontWeight: FontWeight.w600, color: theme.onSurface)),
+                        if (subtitle != null) ...[
+                          const SizedBox(height: 2),
+                          Text(subtitle,
+                              style: TextStyle(fontSize: 12, color: theme.onSurfaceVariant)),
+                        ],
+                        if (isDownloading && state.progress > 0) ...[
+                          const SizedBox(height: 8),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: state.progress,
+                              minHeight: 4,
+                              backgroundColor: theme.surfaceVariant,
+                              valueColor: AlwaysStoppedAnimation<Color>(accentColor),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right_rounded, color: theme.outline, size: 20),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 

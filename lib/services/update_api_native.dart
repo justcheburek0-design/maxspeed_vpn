@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'update_checker_native.dart';
 
-/// Native implementation — checks GitHub releases
+/// Native implementation — delegates to UpdateManager
 Future<void> checkAndPrompt(BuildContext context) async {
-  final update = await UpdateChecker.checkForUpdate();
+  await UpdateManager.instance.checkForUpdate();
+  final update = UpdateManager.instance.availableUpdate;
   if (update != null && context.mounted) {
-    await showUpdateDialog(context, update);
+    await UpdateManager.instance.downloadAndInstall(context);
   }
 }

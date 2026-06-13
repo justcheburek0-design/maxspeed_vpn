@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show Platform, File;
 import 'package:flutter/foundation.dart';
@@ -5,33 +6,117 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:path_provider/path_provider.dart' show getApplicationCacheDirectory;
 import '../core/constants/app_constants.dart';
 import '../core/theme/app_themes.dart';
+import 'update_info.dart';
 
-class UpdateInfo {
-  final String version;
-  final String downloadUrl;
-  final String releaseNotes;
-  final DateTime publishedAt;
-  const UpdateInfo({
-    required this.version,
-    required this.downloadUrl,
-    required this.releaseNotes,
-    required this.publishedAt,
+/// Download progress state for UI binding.
+class UpdateDownloadState {
+  final double progress; // 0.0 – 1.0, or -1 for indeterminate
+  final int receivedBytes;
+  final int totalBytes;
+  final String status; // 'downloading', 'paused', 'installing', 'done', 'error'
+  final String? error;
+
+  const UpdateDownloadState({
+    required this.progress,
+    required this.receivedBytes,
+    required this.totalBytes,
+    required this.status,
+    this.error,
   });
+
+  static const idle = UpdateDownloadState(
+    progress: 0,
+    receivedBytes: 0,
+    totalBytes: 0,
+    status: 'idle',
+  );
 }
 
-class UpdateChecker {
-  static const String _repoApiUrl = AppConstants.githubRepoApi;
+/// Singleton that manages update checking + background download.
+/// Survives widget rebuilds; does NOT survive app restart (re-checks file on start).
+class UpdateManager {
+  UpdateManager._();
+  static final UpdateManager instance = UpdateManager._();
 
-  static Future<UpdateInfo?> checkForUpdate() async {
+  final StreamController<UpdateDownloadState> _progressController =
+      StreamController<UpdateDownloadState>.broadcast();
+  Stream<UpdateDownloadState> get progressStream => _progressController.stream;
+
+  UpdateDownloadState _state = UpdateDownloadState.idle;
+  UpdateDownloadState get state => _state;
+
+  UpdateInfo? _availableUpdate;
+  UpdateInfo? get availableUpdate => _availableUpdate;
+
+  bool _isDownloading = false;
+  bool get isDownloading => _isDownloading;
+
+  bool _isUpdateReady = false;
+  bool get isUpdateReady => _isUpdateReady;
+
+  /// Check if a downloaded APK already exists for a given version.
+  Future<File?> getDownloadedApk(String version) async {
+    try {
+      final cacheDir = await getApplicationCacheDirectory();
+      final file = File('${cacheDir.path}/maxspeed_vpn_v$version.apk');
+      if (file.existsSync() && file.lengthSync() > 0) return file;
+    } catch (_) {}
+    return null;
+  }
+
+  /// Call once on app start. Checks for update, downloads in background if found.
+  Future<void> initialize() async {
+    // Check if we already downloaded an update that hasn't been installed
+    final packageInfo = await PackageInfo.fromPlatform();
+    final currentVersion = packageInfo.version;
+
+    // Check for any newer downloaded APK
+    try {
+      final cacheDir = await getApplicationCacheDirectory();
+      final dir = Directory(cacheDir.path);
+      if (dir.existsSync()) {
+        final files = dir.listSync().whereType<File>().where(
+            (f) => f.path.endsWith('.apk') && f.path.contains('maxspeed_vpn_v'));
+        for (final f in files) {
+          final name = f.uri.pathSegments.last;
+          final versionMatch = RegExp(r'v(\d+\.\d+\.\d+)').firstMatch(name);
+          if (versionMatch != null) {
+            final v = versionMatch.group(1)!;
+            if (_compareVersions(v, currentVersion) > 0) {
+              _isUpdateReady = true;
+              _state = const UpdateDownloadState(
+                progress: 1.0,
+                receivedBytes: 0,
+                totalBytes: 0,
+                status: 'done',
+              );
+              _progressController.add(_state);
+              debugPrint('UpdateManager: found downloaded APK for $v');
+              return;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('UpdateManager: error checking downloaded APKs: $e');
+    }
+
+    // Then check for new updates from GitHub
+    await checkAndDownloadInBackground();
+  }
+
+  /// Check for update from GitHub. If found, starts background download.
+  /// Returns UpdateInfo if a new version is available, null otherwise.
+  Future<UpdateInfo?> checkAndDownloadInBackground() async {
     try {
       final packageInfo = await PackageInfo.fromPlatform();
       final currentVersion = packageInfo.version;
 
       final response = await http.get(
-        Uri.parse(_repoApiUrl),
+        Uri.parse(AppConstants.githubRepoApi),
         headers: {'Accept': 'application/vnd.github.v3+json'},
       ).timeout(const Duration(seconds: 15));
 
@@ -56,19 +141,188 @@ class UpdateChecker {
       if (downloadUrl == null) return null;
 
       if (_compareVersions(latestVersion, currentVersion) > 0) {
-        return UpdateInfo(
+        _availableUpdate = UpdateInfo(
           version: latestVersion,
           downloadUrl: downloadUrl,
           releaseNotes: body,
           publishedAt: publishedAt,
         );
+        // Start background download
+        _startBackgroundDownload(_availableUpdate!);
+        return _availableUpdate;
       }
       return null;
     } catch (e) {
-      debugPrint('Update check failed: $e');
+      debugPrint('UpdateManager: check failed: $e');
       return null;
     }
   }
+
+  /// Manually trigger download (e.g. user tapped "Update" in settings).
+  /// If already downloaded, just installs. Otherwise starts/resumes download.
+  Future<void> downloadAndInstall(BuildContext context) async {
+    if (_availableUpdate == null) {
+      // Check first
+      final info = await checkAndDownloadInBackground();
+      if (info == null || !context.mounted) return;
+    }
+
+    // Check if APK already downloaded
+    final apk = await getDownloadedApk(_availableUpdate!.version);
+    if (apk != null) {
+      _installApk(context, apk);
+      return;
+    }
+
+    // Start fresh download with dialog
+    if (!_isDownloading) {
+      _startBackgroundDownload(_availableUpdate!);
+    }
+
+    if (context.mounted) {
+      _showDownloadDialog(context, _availableUpdate!);
+    }
+  }
+
+  // ─── Background download with retry ───
+
+  Future<void> _startBackgroundDownload(UpdateInfo info, {int attempt = 0}) async {
+    if (_isDownloading) return;
+    _isDownloading = true;
+
+    const maxRetries = 5;
+    const baseDelay = Duration(seconds: 3);
+
+    try {
+      final cacheDir = await getApplicationCacheDirectory();
+      final file = File('${cacheDir.path}/maxspeed_vpn_v${info.version}.apk');
+
+      // Already downloaded?
+      if (file.existsSync() && file.lengthSync() > 0) {
+        _state = const UpdateDownloadState(
+          progress: 1.0, receivedBytes: 0, totalBytes: 0, status: 'done',
+        );
+        _isUpdateReady = true;
+        _progressController.add(_state);
+        _isDownloading = false;
+        return;
+      }
+
+      final client = http.Client();
+      final request = http.Request('GET', Uri.parse(info.downloadUrl));
+
+      // Resume support: if partial file exists, set Range header
+      int startByte = 0;
+      if (file.existsSync()) {
+        startByte = file.lengthSync();
+        request.headers['Range'] = 'bytes=$startByte-';
+      }
+
+      http.StreamedResponse response;
+      try {
+        response = await client.send(request).timeout(const Duration(seconds: 30));
+      } on TimeoutException {
+        client.close();
+        if (attempt < maxRetries) {
+          _state = const UpdateDownloadState(
+            progress: -1, receivedBytes: 0, totalBytes: 0, status: 'paused',
+          );
+          _progressController.add(_state);
+          await Future.delayed(baseDelay * (attempt + 1));
+          _isDownloading = false;
+          return _startBackgroundDownload(info, attempt: attempt + 1);
+        }
+        rethrow;
+      }
+
+      if (response.statusCode != 200 && response.statusCode != 206) {
+        client.close();
+        if (attempt < maxRetries) {
+          _state = UpdateDownloadState(
+            progress: -1, receivedBytes: startByte, totalBytes: 0,
+            status: 'paused', error: 'Server: ${response.statusCode}',
+          );
+          _progressController.add(_state);
+          await Future.delayed(baseDelay * (attempt + 1));
+          _isDownloading = false;
+          return _startBackgroundDownload(info, attempt: attempt + 1);
+        }
+        throw Exception('HTTP ${response.statusCode}');
+      }
+
+      final total = response.contentLength ?? 0;
+      final sink = file.openWrite(mode: startByte > 0 ? FileMode.append : FileMode.write);
+
+      int received = startByte;
+      await for (final chunk in response.stream) {
+        sink.add(chunk);
+        received += chunk.length;
+        if (total > 0) {
+          _state = UpdateDownloadState(
+            progress: received / total,
+            receivedBytes: received,
+            totalBytes: total,
+            status: 'downloading',
+          );
+          _progressController.add(_state);
+        }
+      }
+      await sink.close();
+      client.close();
+
+      _state = const UpdateDownloadState(
+        progress: 1.0, receivedBytes: 0, totalBytes: 0, status: 'done',
+      );
+      _isUpdateReady = true;
+      _progressController.add(_state);
+    } catch (e) {
+      debugPrint('UpdateManager: download error (attempt $attempt): $e');
+      if (attempt < maxRetries) {
+        _state = const UpdateDownloadState(
+          progress: -1, receivedBytes: 0, totalBytes: 0, status: 'paused',
+        );
+        _progressController.add(_state);
+        await Future.delayed(baseDelay * (attempt + 1));
+        _isDownloading = false;
+        return _startBackgroundDownload(info, attempt: attempt + 1);
+      }
+      _state = UpdateDownloadState(
+        progress: 0, receivedBytes: 0, totalBytes: 0,
+        status: 'error', error: e.toString(),
+      );
+      _progressController.add(_state);
+    } finally {
+      _isDownloading = false;
+    }
+  }
+
+  // ─── UI ───
+
+  void _showDownloadDialog(BuildContext context, UpdateInfo info) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => _UpdateDownloadDialog(
+        info: info,
+        manager: instance,
+      ),
+    );
+  }
+
+  Future<void> _installApk(BuildContext context, File file) async {
+    try {
+      const channel = MethodChannel('ru.maxspeed.maxspeed_vpn/installer');
+      final result = await channel.invokeMethod('installApk', {'path': file.path});
+      if (result != true) throw Exception('installApk returned false');
+    } catch (e) {
+      debugPrint('installApk failed: $e');
+      try {
+        await channel.invokeMethod('openFile', {'path': file.path});
+      } catch (_) {}
+    }
+  }
+
+  // ─── Helpers ───
 
   static bool _matchesPlatform(String filename) {
     if (Platform.isAndroid) return filename.endsWith('.apk');
@@ -92,162 +346,118 @@ class UpdateChecker {
     return 0;
   }
 
-  static Future<void> downloadAndInstall(BuildContext context, UpdateInfo info) async {
-    if (!Platform.isAndroid) {
-      // Non-Android: show download URL dialog
-      if (context.mounted) {
-        showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Update'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Download for ${_platformLabel()}:'),
-                const SizedBox(height: 12),
-                SelectableText(info.downloadUrl, style: const TextStyle(fontSize: 12)),
-              ],
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
-            ],
-          ),
-        );
-      }
-      return;
-    }
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => _DownloadDialog(url: info.downloadUrl, version: info.version),
-    );
-  }
-
-  static String _platformLabel() {
-    if (Platform.isIOS) return 'iOS';
-    if (Platform.isMacOS) return 'macOS';
-    if (Platform.isLinux) return 'Linux';
-    if (Platform.isWindows) return 'Windows';
-    return 'Android';
+  void dispose() {
+    _progressController.close();
   }
 }
 
-class _DownloadDialog extends StatefulWidget {
-  final String url;
-  final String version;
-  const _DownloadDialog({required this.url, required this.version});
-  @override State<_DownloadDialog> createState() => _DownloadDialogState();
+/// Dialog that shows download progress, driven by UpdateManager's stream.
+class _UpdateDownloadDialog extends StatefulWidget {
+  final UpdateInfo info;
+  final UpdateManager manager;
+  const _UpdateDownloadDialog({required this.info, required this.manager});
+  @override State<_UpdateDownloadDialog> createState() => _UpdateDownloadDialogState();
 }
 
-class _DownloadDialogState extends State<_DownloadDialog> {
-  double _progress = 0;
-  String _status = 'Preparing...';
-  bool _done = false;
-  bool _error = false;
-
+class _UpdateDownloadDialogState extends State<_UpdateDownloadDialog> {
   @override
   void initState() {
     super.initState();
-    _download();
-  }
-
-  Future<void> _download() async {
-    try {
-      setState(() => _status = 'Downloading...');
-      final client = http.Client();
-      final request = http.Request('GET', Uri.parse(widget.url));
-      final response = await client.send(request).timeout(const Duration(minutes: 5));
-
-      if (response.statusCode != 200) {
-        setState(() { _status = 'Server error: ${response.statusCode}'; _error = true; });
-        return;
-      }
-
-      final total = response.contentLength ?? 0;
-      final tempDir = await getTemporaryDirectory();
-      final file = File('${tempDir.path}/maxspeed_vpn_v${widget.version}.apk');
-      if (file.existsSync()) file.deleteSync();
-      final sink = file.openWrite();
-
-      int received = 0;
-      await for (final chunk in response.stream) {
-        sink.add(chunk);
-        received += chunk.length;
-        if (total > 0) {
-          setState(() {
-            _progress = received / total;
-            final mb = (received / 1024 / 1024).toStringAsFixed(1);
-            final totalMb = (total / 1024 / 1024).toStringAsFixed(1);
-            _status = 'Downloading... $mb / $totalMb MB';
-          });
-        }
-      }
-      await sink.close();
-      client.close();
-
-      setState(() { _status = 'Installing...'; _done = true; });
-      await Future.delayed(const Duration(milliseconds: 500));
-      await _openApk(file);
-      if (mounted) Navigator.pop(context);
-    } catch (e) {
-      setState(() { _status = 'Error: $e'; _error = true; });
-    }
-  }
-
-  static const _channel = MethodChannel('ru.maxspeed.maxspeed_vpn/installer');
-
-  Future<void> _openApk(File file) async {
-    try {
-      if (Platform.isAndroid) {
-        final result = await _channel.invokeMethod('installApk', {'path': file.path});
-        if (result != true) throw Exception('installApk returned false');
-      }
-    } catch (e) {
-      debugPrint('installApk failed: $e');
-      try {
-        await _channel.invokeMethod('openFile', {'path': file.path});
-      } catch (e2) {
-        debugPrint('openFile fallback failed: $e2');
-        if (mounted) {
-          setState(() { _status = 'Downloaded: ${file.path}'; _error = true; });
-        }
-      }
+    // If already done, auto-close after brief delay
+    if (widget.manager.state.status == 'done') {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) Navigator.pop(context);
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = GlassTheme.of(context);
-    return AlertDialog(
-      backgroundColor: theme.surface,
-      surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: Text('Update', style: TextStyle(color: theme.onSurface)),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (!_done && !_error) CircularProgressIndicator(value: _progress > 0 ? _progress : null, color: theme.primary),
-          if (_done) Icon(Icons.check_circle, color: theme.success, size: 48),
-          if (_error) Icon(Icons.error, color: theme.error, size: 48),
-          const SizedBox(height: 16),
-          Text(_status, style: TextStyle(color: theme.onSurfaceVariant), textAlign: TextAlign.center),
-          if (!_done && !_error && _progress > 0) ...[
-            const SizedBox(height: 12),
-            LinearProgressIndicator(value: _progress, color: theme.primary),
-            const SizedBox(height: 4),
-            Text('${(_progress * 100).toStringAsFixed(0)}%', style: TextStyle(fontSize: 12, color: theme.outline)),
-          ],
-        ],
-      ),
-      actions: [
-        if (_done || _error)
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(_done ? 'Done' : 'Close', style: TextStyle(color: theme.primary)),
+    return StreamBuilder<UpdateDownloadState>(
+      stream: widget.manager.progressStream,
+      initialData: widget.manager.state,
+      builder: (context, snapshot) {
+        final state = snapshot.data ?? UpdateDownloadState.idle;
+        final isDone = state.status == 'done';
+        final isError = state.status == 'error';
+
+        return AlertDialog(
+          backgroundColor: theme.surface,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text('Обновление', style: TextStyle(color: theme.onSurface)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (!isDone && !isError)
+                CircularProgressIndicator(
+                  value: state.progress > 0 ? state.progress : null,
+                  color: theme.primary,
+                ),
+              if (isDone) Icon(Icons.check_circle, color: theme.success, size: 48),
+              if (isError) Icon(Icons.error, color: theme.error, size: 48),
+              const SizedBox(height: 16),
+              Text(
+                _statusText(state),
+                style: TextStyle(color: theme.onSurfaceVariant),
+                textAlign: TextAlign.center,
+              ),
+              if (!isDone && !isError && state.progress > 0) ...[
+                const SizedBox(height: 12),
+                LinearProgressIndicator(value: state.progress, color: theme.primary),
+                const SizedBox(height: 4),
+                Text(
+                  '${(state.progress * 100).toStringAsFixed(0)}%',
+                  style: TextStyle(fontSize: 12, color: theme.outline),
+                ),
+              ],
+            ],
           ),
-      ],
+          actions: [
+            if (isDone || isError)
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(isDone ? 'Готово' : 'Закрыть',
+                    style: TextStyle(color: theme.primary)),
+              ),
+          ],
+        );
+      },
     );
+  }
+
+  String _statusText(UpdateDownloadState state) {
+    switch (state.status) {
+      case 'downloading':
+        if (state.totalBytes > 0) {
+          final mb = (state.receivedBytes / 1024 / 1024).toStringAsFixed(1);
+          final totalMb = (state.totalBytes / 1024 / 1024).toStringAsFixed(1);
+          return 'Скачивание... $mb / $totalMb MB';
+        }
+        return 'Скачивание...';
+      case 'paused':
+        return 'Нет подключения. Повтор...';
+      case 'done':
+        return 'Скачивание завершено!';
+      case 'error':
+        return 'Ошибка: ${state.error ?? "неизвестная"}';
+      default:
+        return 'Подготовка...';
+    }
+  }
+}
+
+// ─── Legacy API (kept for compatibility with update_api_native.dart) ───
+
+class UpdateChecker {
+  static Future<UpdateInfo?> checkForUpdate() async {
+    return UpdateManager.instance.checkAndDownloadInBackground();
+  }
+
+  static Future<void> downloadAndInstall(BuildContext context, UpdateInfo info) async {
+    UpdateManager.instance._availableUpdate = info;
+    await UpdateManager.instance.downloadAndInstall(context);
   }
 }
 
@@ -263,22 +473,25 @@ Future<void> showUpdateDialog(BuildContext context, UpdateInfo info) async {
         children: [
           Icon(Icons.system_update, color: theme.primary),
           const SizedBox(width: 12),
-          Text('Update available', style: TextStyle(color: theme.onSurface)),
+          Text('Доступно обновление', style: TextStyle(color: theme.onSurface)),
         ],
       ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('New version: ${info.version}', style: TextStyle(color: theme.primary, fontWeight: FontWeight.bold)),
+          Text('Новая версия: ${info.version}',
+              style: TextStyle(color: theme.primary, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           if (info.releaseNotes.isNotEmpty) ...[
-            Text('What\'s new:', style: TextStyle(color: theme.onSurfaceVariant, fontWeight: FontWeight.w600)),
+            Text('Что нового:',
+                style: TextStyle(color: theme.onSurfaceVariant, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
             Container(
               constraints: const BoxConstraints(maxHeight: 200),
               child: SingleChildScrollView(
-                child: Text(info.releaseNotes, style: TextStyle(color: theme.onSurfaceVariant, fontSize: 13)),
+                child: Text(info.releaseNotes,
+                    style: TextStyle(color: theme.onSurfaceVariant, fontSize: 13)),
               ),
             ),
           ],
@@ -287,7 +500,7 @@ Future<void> showUpdateDialog(BuildContext context, UpdateInfo info) async {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(ctx),
-          child: Text('Later', style: TextStyle(color: theme.outline)),
+          child: Text('Позже', style: TextStyle(color: theme.outline)),
         ),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
@@ -297,9 +510,10 @@ Future<void> showUpdateDialog(BuildContext context, UpdateInfo info) async {
           ),
           onPressed: () {
             Navigator.pop(ctx);
-            UpdateChecker.downloadAndInstall(context, info);
+            UpdateManager.instance._availableUpdate = info;
+            UpdateManager.instance.downloadAndInstall(context);
           },
-          child: const Text('Update'),
+          child: const Text('Обновить'),
         ),
       ],
     ),
