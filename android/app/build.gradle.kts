@@ -24,14 +24,11 @@ android {
         targetSdk = 36
         versionCode = 22
         versionName = "1.4.10+22"
-        // ndk block removed — using splits.abi for per-architecture APKs
     }
 
     splits {
         abi {
             isEnable = true
-            reset()
-            include("arm64-v8a", "armeabi-v7a", "x86_64")
             isUniversalApk = false
         }
         density {
