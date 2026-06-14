@@ -38,6 +38,8 @@ class IosVpnService implements VpnService {
   @override
   Stream<VpnLogEntry> get logStream => _logController.stream;
   @override
+  Stream<double> get downloadProgressStream => const Stream.empty();
+  @override
   VpnConnectionState get state => _state;
   @override
   VpnServer? get activeServer => _activeServer;

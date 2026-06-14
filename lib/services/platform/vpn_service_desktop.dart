@@ -54,6 +54,7 @@ class DesktopVpnService implements VpnService {
   Stream<List<VpnServer>> get serversStream => _serversController.stream;
 
   /// Download progress stream (0.0 to 1.0).
+  @override
   Stream<double> get downloadProgressStream => _downloadProgressController.stream;
 
   DesktopVpnService() {

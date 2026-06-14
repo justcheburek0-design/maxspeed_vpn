@@ -15,8 +15,8 @@ abstract class VpnService {
   Stream<List<VpnServer>> get serversStream;
 
   /// Download progress stream (0.0 to 1.0). Only used on desktop.
-  /// Returns empty stream on platforms that don't support it.
-  Stream<double> get downloadProgressStream => const Stream.empty();
+  /// Override in platform implementations that support it.
+  Stream<double> get downloadProgressStream;
 
   Future<bool> connect(VpnServer server);
   Future<bool> disconnect();
