@@ -32,6 +32,8 @@ class SubscriptionParser {
         server = _parseVmess(link);
       } else if (link.startsWith('ss://')) {
         server = _parseShadowsocks(link);
+      } else if (link.startsWith('naive+https://') || link.startsWith('naive+http://')) {
+        server = _parseNaive(link);
       }
       if (server != null) {
         final flag = CountryFlagUtil.extractFlag(server.name);
@@ -109,6 +111,32 @@ class SubscriptionParser {
         name: name, address: uri.host, port: uri.port,
         protocol: VpnProtocol.shadowsocks, security: VpnSecurity.none,
         uuid: pass, rawConfig: {'link': link, 'method': method},
+      );
+    } catch (_) { return null; }
+  }
+
+  static VpnServer? _parseNaive(String link) {
+    try {
+      final uri = Uri.parse(link);
+      final userInfo = uri.userInfo;
+      String? username;
+      String? password;
+      if (userInfo.isNotEmpty) {
+        final parts = userInfo.split(':');
+        if (parts.length >= 2) {
+          username = parts[0];
+          password = parts.sublist(1).join(':');
+        } else {
+          username = userInfo;
+        }
+      }
+      final name = uri.fragment.isNotEmpty ? Uri.decodeComponent(uri.fragment) : uri.host;
+      return VpnServer(
+        id: 'naive_' + uri.host + '_' + uri.port.toString() + '_' + (username ?? ''),
+        name: name, address: uri.host, port: uri.port,
+        protocol: VpnProtocol.naive, security: VpnSecurity.tls,
+        username: username, uuid: password,
+        rawConfig: {'link': link},
       );
     } catch (_) { return null; }
   }

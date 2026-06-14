@@ -73,6 +73,8 @@ class SingboxConfigGenerator {
         return _buildTrojanOutbound(server);
       case VpnProtocol.shadowsocks:
         return _buildShadowsocksOutbound(server);
+      case VpnProtocol.naive:
+        return _buildNaiveOutbound(server);
       default:
         return _buildVlessOutbound(server);
     }
@@ -167,6 +169,30 @@ class SingboxConfigGenerator {
       'method': method,
       'password': server.uuid ?? '',
     };
+  }
+
+  static Map<String, dynamic> _buildNaiveOutbound(VpnServer server) {
+    final outbound = <String, dynamic>{
+      'type': 'naive',
+      'tag': 'vpn',
+      'server': server.address,
+      'server_port': server.port,
+      'username': server.username ?? '',
+      'password': server.uuid ?? '',
+    };
+    // Naive always uses HTTPS underneath
+    final tls = <String, dynamic>{
+      'enabled': true,
+      'server_name': server.sni ?? server.address,
+    };
+    if (server.fingerprint != null && server.fingerprint!.isNotEmpty) {
+      tls['utls'] = {
+        'enabled': true,
+        'fingerprint': server.fingerprint!,
+      };
+    }
+    outbound['tls'] = tls;
+    return outbound;
   }
 }
 
