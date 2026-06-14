@@ -10,13 +10,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.8
   shared_preferences: ^2.2.2
   url_launcher: ^6.2.1
   package_info_plus: ^8.0.0
   http: ^1.2.0
-  path_provider: ^2.1.0
-  vibration: ^2.0.1
   # Android-only — imported conditionally in vpn_service_android.dart
   flutter_singbox_vpn: ^1.1.2
 

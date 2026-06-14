@@ -49,18 +49,16 @@ jobs:
           cd android
           ./gradlew assembleRelease --no-daemon \
             -Dorg.gradle.vfs.watch=false \
-            -Dorg.gradle.configuration-cache=false \
             -Dorg.gradle.jvmargs="-Xmx4096m"
-          cp app/build/outputs/apk/release/app-release.apk ../build/app/outputs/flutter-apk/app-release.apk 2>/dev/null || true
         env:
-          GRADLE_OPTS: "-Dorg.gradle.vfs.watch=false -Dorg.gradle.daemon=false -Dorg.gradle.configuration-cache=false -Dorg.gradle.jvmargs=-Xmx4096m"
+          GRADLE_OPTS: "-Dorg.gradle.vfs.watch=false -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4096m"
           JAVA_TOOL_OPTIONS: "-Dorg.gradle.vfs.watch=false"
 
-      - name: Upload APK artifact
+      - name: Upload APK artifacts (split)
         uses: actions/upload-artifact@v4
         with:
           name: apk-release
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: android/app/build/outputs/apk/release/*.apk
 
   # ─── Linux Desktop ─────────────────────────────
   build-linux:
@@ -90,7 +88,7 @@ jobs:
         run: flutter config --enable-linux-desktop
 
       - name: Build Linux
-        run: flutter build linux --release --no-tree-shake-icons
+        run: flutter build linux --release
 
       - name: Package Linux binary
         run: |
@@ -137,7 +135,7 @@ jobs:
 
       - name: Build Windows
         run: |
-          flutter build windows --release --no-tree-shake-icons
+          flutter build windows --release
           Write-Output "=== .exe files ==="
           Get-ChildItem -Recurse build\windows\ -Filter *.exe -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName }
           Write-Output "=== .dll files ==="
@@ -191,7 +189,7 @@ jobs:
       - name: Build macOS arm64
         run: |
           export FLUTTER_MACOS_ENABLE_METAL=0
-          flutter build macos --release --no-tree-shake-icons
+          flutter build macos --release
 
       - name: Package arm64 dmg
         run: |
@@ -221,7 +219,7 @@ jobs:
       - name: Build macOS x86_64
         run: |
           export FLUTTER_MACOS_ENABLE_METAL=0
-          arch -x86_64 flutter build macos --release --no-tree-shake-icons
+          arch -x86_64 flutter build macos --release
 
       - name: Package x86_64 dmg
         run: |
@@ -309,7 +307,7 @@ jobs:
           cd ..
 
       - name: Build iOS (no codesign)
-        run: flutter build ios --release --no-tree-shake-icons --no-codesign
+        run: flutter build ios --release --no-codesign
 
       - name: Package as zip
         run: |
@@ -361,7 +359,7 @@ jobs:
         continue-on-error: true
 
       - name: Build Web
-        run: flutter build web --release --no-tree-shake-icons
+        run: flutter build web --release
 
       - name: Upload Web artifact
         uses: actions/upload-artifact@v4
@@ -433,7 +431,7 @@ jobs:
           name: MaxSpeedVPN v${{ steps.version.outputs.version }}
           body: ${{ steps.notes.outputs.notes || ' ' }}
           files: |
-            artifacts/apk-release/app-release.apk
+            artifacts/apk-release/*.apk
             artifacts/linux-release/maxspeed_vpn-linux-x64
             artifacts/windows-release/maxspeed_vpn-windows-x64.zip
             artifacts/macos-arm64-release/maxspeed_vpn-macos-arm64.dmg
