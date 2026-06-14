@@ -19,6 +19,7 @@ class DesktopVpnService implements VpnService {
   final _stateController = StreamController<VpnConnectionState>.broadcast();
   final _statsController = StreamController<VpnConnectionStats>.broadcast();
   final _logController = StreamController<VpnLogEntry>.broadcast();
+  final _downloadProgressController = StreamController<double>.broadcast();
 
   VpnConnectionState _state = VpnConnectionState.disconnected;
   VpnServer? _activeServer;
@@ -51,6 +52,9 @@ class DesktopVpnService implements VpnService {
   List<VpnServer> get servers => List.unmodifiable(_servers);
   @override
   Stream<List<VpnServer>> get serversStream => _serversController.stream;
+
+  /// Download progress stream (0.0 to 1.0).
+  Stream<double> get downloadProgressStream => _downloadProgressController.stream;
 
   DesktopVpnService() {
     _addLog(VpnLogLevel.info, '${AppConstants.appName} Desktop VPN init');
@@ -90,6 +94,13 @@ class DesktopVpnService implements VpnService {
     try {
       _addLog(VpnLogLevel.info, 'Connecting to ${server.name} (${server.address}:${server.port})');
 
+      // Check internet connectivity first
+      if (!await _checkInternet()) {
+        _addLog(VpnLogLevel.error, 'No internet connection. Check your network.');
+        _setState(VpnConnectionState.error);
+        return false;
+      }
+
       var bin = await _findSingbox();
       if (bin == null) {
         _addLog(VpnLogLevel.info, 'sing-box not found, downloading...');
@@ -100,11 +111,12 @@ class DesktopVpnService implements VpnService {
           _addLog(VpnLogLevel.info, 'Found cached sing-box: $bin');
         } else {
           // Download from GitHub
+          _setState(VpnConnectionState.connecting); // show connecting state during download
           final downloaded = await SingboxDownloader.download(
             onProgress: (received, total) {
               if (total > 0) {
-                final pct = (received * 100 / total).round();
-                _addLog(VpnLogLevel.debug, 'Downloading sing-box: $pct%');
+                final pct = received / total;
+                _downloadProgressController.add(pct);
               }
             },
           );
@@ -113,7 +125,7 @@ class DesktopVpnService implements VpnService {
             _addLog(VpnLogLevel.info, 'sing-box downloaded: $bin');
           } else {
             _addLog(VpnLogLevel.error,
-                'Failed to download sing-box. Install manually: https://sing-box.sagernet.org/installation/');
+                'Failed to download sing-box. Check internet or install manually: https://sing-box.sagernet.org/installation/');
             _setState(VpnConnectionState.error);
             return false;
           }
@@ -346,6 +358,17 @@ class DesktopVpnService implements VpnService {
     if (kDebugMode) print('[VPN][${level.name}] $message');
   }
 
+  /// Check internet connectivity by pinging a reliable host.
+  Future<bool> _checkInternet() async {
+    try {
+      final result = await InternetAddress.lookup('github.com')
+          .timeout(const Duration(seconds: 5));
+      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
   @override
   void dispose() {
     _stopStatsTimer();
@@ -354,6 +377,7 @@ class DesktopVpnService implements VpnService {
     _statsController.close();
     _logController.close();
     _serversController.close();
+    _downloadProgressController.close();
   }
 
   @override
