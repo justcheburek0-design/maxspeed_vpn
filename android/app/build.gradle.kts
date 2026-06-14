@@ -25,7 +25,7 @@ android {
         versionCode = 22
         versionName = "1.4.10+22"
         ndk {
-            abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a", "x86_64"))
+            // abiFilters removed — using splits.abi instead for per-architecture APKs
         }
     }
 
