@@ -54,10 +54,12 @@ jobs:
 
       - name: List APK output
         run: |
-          echo "=== APK output ==="
-          find android/app/build/outputs -name "*.apk" 2>/dev/null || echo "No APK found"
-          echo "=== Full outputs ==="
-          ls -laR android/app/build/outputs/ 2>/dev/null | head -50
+          echo "=== Search entire repo for APK ==="
+          find . -name "*.apk" 2>/dev/null || echo "No APK anywhere"
+          echo "=== build/ directory ==="
+          ls -la build/ 2>/dev/null || echo "No build/ dir"
+          echo "=== android/app/build/ ==="
+          ls -la android/app/build/ 2>/dev/null || echo "No android/app/build/ dir"
 
       - name: Upload APK artifacts (split)
         uses: actions/upload-artifact@v4
