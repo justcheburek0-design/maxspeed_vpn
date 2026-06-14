@@ -38,21 +38,16 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
+            ~/.gradle/caches
             ~/.gradle/wrapper
-          key: gradle-wrapper-${{ runner.os }}-${{ hashFiles('android/**/gradle-wrapper.properties') }}
-          restore-keys: gradle-wrapper-${{ runner.os }}-
-
-      - name: Clean Gradle
-        run: |
-          cd android
-          ./gradlew clean --no-daemon
-        env:
-          GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+            android/.gradle
+          key: gradle-${{ runner.os }}-${{ hashFiles('android/**/*.gradle*', 'android/**/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}-
 
       - name: Build APK
         run: |
           cd android
-          ./gradlew assembleRelease --no-daemon --no-build-cache
+          ./gradlew assembleRelease --no-daemon
             -Dorg.gradle.vfs.watch=false \
             -Dorg.gradle.jvmargs="-Xmx4096m"
         env:
