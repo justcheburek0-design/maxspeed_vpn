@@ -22,8 +22,8 @@ android {
         applicationId = "ru.maxspeed.maxspeed_vpn"
         minSdk = flutter.minSdkVersion
         targetSdk = 36
-        versionCode = 18
-        versionName = "1.4.6+18"
+        versionCode = 19
+        versionName = "1.4.7+19"
         ndk {
             abiFilters.add("arm64-v8a")
         }
