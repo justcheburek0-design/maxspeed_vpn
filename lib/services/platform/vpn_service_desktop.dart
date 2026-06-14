@@ -4,7 +4,6 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../data/models/vpn_models.dart';
@@ -100,7 +99,7 @@ class DesktopVpnService implements VpnService {
 
       // Generate config with API enabled
       final configJson = SingboxConfigGenerator.generate(server);
-      final tempDir = await getTemporaryDirectory();
+      final tempDir = Directory.systemTemp;
       _configPath = '${tempDir.path}/maxspeed_vpn_config.json';
       await File(_configPath!).writeAsString(configJson);
 
