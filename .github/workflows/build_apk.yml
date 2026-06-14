@@ -52,20 +52,11 @@ jobs:
           GRADLE_OPTS: "-Dorg.gradle.vfs.watch=false -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4096m"
           JAVA_TOOL_OPTIONS: "-Dorg.gradle.vfs.watch=false"
 
-      - name: List APK output
-        run: |
-          echo "=== Search entire repo for APK ==="
-          find . -name "*.apk" 2>/dev/null || echo "No APK anywhere"
-          echo "=== build/ directory ==="
-          ls -la build/ 2>/dev/null || echo "No build/ dir"
-          echo "=== android/app/build/ ==="
-          ls -la android/app/build/ 2>/dev/null || echo "No android/app/build/ dir"
-
       - name: Upload APK artifacts (split)
         uses: actions/upload-artifact@v4
         with:
           name: apk-release
-          path: android/app/build/outputs/apk/release/*.apk
+          path: build/app/outputs/apk/release/*.apk
 
   # ─── Linux Desktop ─────────────────────────────
   build-linux:

@@ -22,8 +22,8 @@ android {
         applicationId = "ru.maxspeed.maxspeed_vpn"
         minSdk = flutter.minSdkVersion
         targetSdk = 36
-        versionCode = 22
-        versionName = "1.4.10+22"
+        versionCode = 23
+        versionName = "1.4.11+23"
         // Limit ABIs to reduce APK size (no splits — single universal APK)
         ndk {
             abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a", "x86_64"))
