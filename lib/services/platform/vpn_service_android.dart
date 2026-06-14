@@ -48,6 +48,13 @@ class AndroidVpnService implements VpnService {
 
   AndroidVpnService() {
     _singbox.onStatusChanged.listen((statusMap) {
+      // Handle alert messages from sing-box native service
+      if (statusMap['type'] == 'alert') {
+        final alertMsg = statusMap['message'] as String? ?? 'Unknown error';
+        _addLog(VpnLogLevel.error, 'sing-box: $alertMsg');
+        _updateStateFromSingbox(0); // Stopped
+        return;
+      }
       final code = statusMap['statusCode'] as int? ?? 0;
       _updateStateFromSingbox(code);
     });
@@ -287,6 +294,14 @@ class AndroidVpnService implements VpnService {
           singboxLogs.add(msg);
         }
       });
+      // Also try to get buffered logs from sing-box
+      try {
+        final buffered = await _singbox.getLogs();
+        if (buffered.isNotEmpty) {
+          singboxLogs.addAll(buffered);
+          _addLog(VpnLogLevel.info, 'Получено ${buffered.length} буферизованных логов sing-box');
+        }
+      } catch (_) {}
 
       try {
         final confirmedState = await completer.future.timeout(
