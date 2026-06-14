@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'vpn_service_interface.dart';
 
 // Conditional imports: web vs native factory
