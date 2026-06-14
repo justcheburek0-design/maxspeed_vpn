@@ -413,7 +413,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               const Spacer(),
               _iconBtn(ctx, theme, Icons.network_ping_rounded, 'Пинг', _onPingServers),
               const SizedBox(width: 6),
-              _iconBtn(ctx, theme, Icons.autorenew_rounded, 'Авто-перезагрузка', _onAutoReload),
+              _iconBtn(ctx, theme, Icons.autorenew_rounded, 'Перезагрузка', _onAutoReload),
             ],
           ),
         ),

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/constants/app_constants.dart';
 import 'core/theme/app_themes.dart';
@@ -77,6 +78,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
   late final VpnService _vpnService;
+  String _appVersion = '';
 
   @override
   void initState() {
@@ -88,7 +90,14 @@ class _MainScreenState extends State<MainScreen> {
       _checkInitialLink();
       UpdateManager.instance.initialize();
     }
+    _loadVersion();
   }
+
+  Future<void> _loadVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (mounted) setState(() => _appVersion = '${info.version}+${info.buildNumber}');
+    } catch (_) {}
 
   Future<void> _checkInitialLink() async {
     final link = await DeepLinkHandler.getInitialLink();
@@ -221,13 +230,7 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  String get _platformLabel {
-    if (Theme.of(context).platform == TargetPlatform.linux) return 'Linux';
-    if (Theme.of(context).platform == TargetPlatform.macOS) return 'macOS';
-    if (Theme.of(context).platform == TargetPlatform.windows) return 'Windows';
-    if (Theme.of(context).platform == TargetPlatform.iOS) return 'iOS';
-    return 'Android';
-  }
+  String get _platformLabel => _appVersion.isNotEmpty ? _appVersion : '—';
 
   Widget _sideNavItem(int index, IconData icon, String label, AppTheme theme, bool extended) {
     final isSelected = _currentIndex == index;
