@@ -267,25 +267,44 @@ class AndroidVpnService implements VpnService {
       _addLog(VpnLogLevel.info, 'Ожидание статуса Started...');
       final completer = Completer<VpnConnectionState>();
       late StreamSubscription sub;
+      late StreamSubscription logSub;
+      final singboxLogs = <String>[];
       sub = _stateController.stream.listen((state) {
         if (state == VpnConnectionState.connected) {
           if (!completer.isCompleted) completer.complete(state);
           sub.cancel();
+          logSub.cancel();
         } else if (state == VpnConnectionState.disconnected) {
           if (!completer.isCompleted) completer.complete(state);
           sub.cancel();
+          logSub.cancel();
+        }
+      });
+      // Collect sing-box logs during connection attempt
+      logSub = _singbox.onLogMessage.listen((logEvent) {
+        if (logEvent['type'] == 'log') {
+          final msg = logEvent['message'] as String? ?? '';
+          singboxLogs.add(msg);
         }
       });
 
       try {
         final confirmedState = await completer.future.timeout(
-          const Duration(seconds: 15),
+          const Duration(seconds: 30),
           onTimeout: () {
-            _addLog(VpnLogLevel.error, 'Таймаут ожидания статуса Started (15с)');
+            _addLog(VpnLogLevel.error, 'Таймаут ожидания статуса Started (30с)');
             return VpnConnectionState.disconnected;
           },
         );
         if (confirmedState != VpnConnectionState.connected) {
+          // Log collected sing-box messages for diagnostics
+          if (singboxLogs.isNotEmpty) {
+            for (final msg in singboxLogs) {
+              _addLog(VpnLogLevel.debug, 'sing-box: $msg');
+            }
+          } else {
+            _addLog(VpnLogLevel.debug, 'sing-box: нет логов (sing-box не запустил ядро?)');
+          }
           _addLog(VpnLogLevel.error, 'VPN не перешёл в connected, состояние: $confirmedState');
           _state = VpnConnectionState.error;
           _activeServer = null;

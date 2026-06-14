@@ -806,23 +806,37 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _onToggle() {
-    if (_state == VpnConnectionState.connected || _state == VpnConnectionState.connecting) {
+    if (_state == VpnConnectionState.connecting || _state == VpnConnectionState.disconnecting) {
+      // Do nothing while transitioning
+      return;
+    }
+    if (_state == VpnConnectionState.connected) {
       widget.vpnService.disconnect();
-    } else {
-      final server = widget.vpnService.activeServer ?? _selectedServer;
+      return;
+    }
+    if (_state == VpnConnectionState.error) {
+      // Allow retry after error, but require explicit server selection
+      final server = _selectedServer ?? widget.vpnService.activeServer;
       if (server != null) {
-        widget.vpnService.connect(server).then((success) {
-          if (!success && mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Не удалось подключиться'), duration: Duration(seconds: 2)));
-          }
-        });
+        _connect(server);
       } else {
         final servers = widget.vpnService.servers;
         if (servers.isNotEmpty) {
           _connect(servers.first);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Нет серверов — добавьте подписку в настройках'), duration: Duration(seconds: 3)));
         }
+      }
+      return;
+    }
+    // disconnected state
+    final server = widget.vpnService.activeServer ?? _selectedServer;
+    if (server != null) {
+      _connect(server);
+    } else {
+      final servers = widget.vpnService.servers;
+      if (servers.isNotEmpty) {
+        _connect(servers.first);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Нет серверов — добавьте подписку в настройках'), duration: Duration(seconds: 3)));
       }
     }
   }
