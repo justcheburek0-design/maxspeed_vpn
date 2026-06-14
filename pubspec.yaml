@@ -1,7 +1,7 @@
 name: maxspeed_vpn
 description: "MaxSpeedVPN — fast, modern VPN client built with Flutter + sing-box"
 publish_to: 'none'
-version: 1.4.12+24
+version: 1.4.13+25
 
 environment:
   sdk: ^3.9.2
