@@ -136,18 +136,20 @@ class DesktopVpnService implements VpnService {
 
       // Generate config with API enabled
       final configJson = SingboxConfigGenerator.generate(server);
-      final tempDir = Directory.systemTemp;
-      _configPath = '${tempDir.path}/maxspeed_vpn_config.json';
+      final exeDir = File(Platform.resolvedExecutable).parent.path;
+      _configPath = '$exeDir\\maxspeed_vpn_config.json';
       await File(_configPath!).writeAsString(configJson);
 
       await _killSingbox();
+      _process = null;
 
       _addLog(VpnLogLevel.info, 'Starting sing-box...');
       _process = await Process.start(
         bin,
-        ['run', '-config', _configPath!, '-C', tempDir.path],
-        mode: ProcessStartMode.detachedWithStdio,
-        workingDirectory: tempDir.path,
+        ['run', '-config', _configPath!, '-C', exeDir],
+        mode: ProcessStartMode.normal,
+        workingDirectory: exeDir,
+        runInShell: Platform.isWindows,
       );
 
       // Log stdout/stderr
