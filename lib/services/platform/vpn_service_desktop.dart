@@ -9,6 +9,7 @@ import '../../core/constants/app_constants.dart';
 import '../../data/models/vpn_models.dart';
 import '../../vpn/singbox_config_generator.dart';
 import '../vpn_service_interface.dart';
+import 'singbox_downloader.dart';
 
 /// Desktop VPN via sing-box subprocess.
 ///
@@ -89,11 +90,34 @@ class DesktopVpnService implements VpnService {
     try {
       _addLog(VpnLogLevel.info, 'Connecting to ${server.name} (${server.address}:${server.port})');
 
-      final bin = await _findSingbox();
+      var bin = await _findSingbox();
       if (bin == null) {
-        _addLog(VpnLogLevel.error, 'sing-box not found. Install: https://sing-box.sagernet.org/installation/');
-        _setState(VpnConnectionState.error);
-        return false;
+        _addLog(VpnLogLevel.info, 'sing-box not found, downloading...');
+
+        // Check if already downloaded by our downloader
+        if (await SingboxDownloader.isDownloaded()) {
+          bin = await SingboxDownloader.binaryPath;
+          _addLog(VpnLogLevel.info, 'Found cached sing-box: $bin');
+        } else {
+          // Download from GitHub
+          final downloaded = await SingboxDownloader.download(
+            onProgress: (received, total) {
+              if (total > 0) {
+                final pct = (received * 100 / total).round();
+                _addLog(VpnLogLevel.debug, 'Downloading sing-box: $pct%');
+              }
+            },
+          );
+          if (downloaded != null) {
+            bin = downloaded;
+            _addLog(VpnLogLevel.info, 'sing-box downloaded: $bin');
+          } else {
+            _addLog(VpnLogLevel.error,
+                'Failed to download sing-box. Install manually: https://sing-box.sagernet.org/installation/');
+            _setState(VpnConnectionState.error);
+            return false;
+          }
+        }
       }
       _addLog(VpnLogLevel.info, 'sing-box: $bin');
 
