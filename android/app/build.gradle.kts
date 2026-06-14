@@ -52,12 +52,6 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
-
-    buildTypes {
-        release {
-            signingConfig = signingConfigs.getByName("debug")
-        }
-    }
 }
 
 flutter {
