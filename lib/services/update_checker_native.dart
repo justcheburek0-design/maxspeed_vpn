@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io' show Directory, File, FileMode, Platform;
+import 'dart:io' show Directory, File, FileMode, Platform, Process, ProcessStartMode;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -202,6 +202,7 @@ class UpdateManager {
     const baseDelay = Duration(seconds: 3);
 
     try {
+      final cacheDir = await getApplicationCacheDirectory();
       final ext = Platform.isAndroid ? '.apk'
           : Platform.isWindows ? '.zip'
           : Platform.isMacOS ? '.dmg'

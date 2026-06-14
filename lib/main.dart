@@ -98,6 +98,7 @@ class _MainScreenState extends State<MainScreen> {
       final info = await PackageInfo.fromPlatform();
       if (mounted) setState(() => _appVersion = '${info.version}+${info.buildNumber}');
     } catch (_) {}
+  }
 
   Future<void> _checkInitialLink() async {
     final link = await DeepLinkHandler.getInitialLink();
