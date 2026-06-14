@@ -57,15 +57,23 @@ class UpdateManager {
   bool _isUpdateReady = false;
   bool get isUpdateReady => _isUpdateReady;
 
-  /// Check if a downloaded APK already exists for a given version.
-  Future<File?> getDownloadedApk(String version) async {
+  /// Check if a downloaded update file already exists for a given version.
+  Future<File?> getDownloadedFile(String version) async {
     try {
       final cacheDir = await getApplicationCacheDirectory();
-      final file = File('${cacheDir.path}/maxspeed_vpn_v$version.apk');
+      final ext = Platform.isAndroid ? '.apk'
+          : Platform.isWindows ? '.zip'
+          : Platform.isMacOS ? '.dmg'
+          : Platform.isLinux ? ''
+          : '.apk';
+      final file = File('${cacheDir.path}/maxspeed_vpn_v$version$ext');
       if (file.existsSync() && file.lengthSync() > 0) return file;
     } catch (_) {}
     return null;
   }
+
+  /// Legacy alias (kept for compatibility)
+  Future<File?> getDownloadedApk(String version) => getDownloadedFile(version);
 
   /// Call once on app start. Checks for update, downloads in background if found.
   Future<void> initialize() async {
@@ -73,14 +81,14 @@ class UpdateManager {
     final packageInfo = await PackageInfo.fromPlatform();
     final currentVersion = packageInfo.version;
 
-    // Check for any newer downloaded APK
+    // Check for any newer downloaded update file
     try {
       final cacheDir = await getApplicationCacheDirectory();
       final dir = Directory(cacheDir.path);
       if (dir.existsSync()) {
-        final files = dir.listSync().whereType<File>().where(
-            (f) => f.path.endsWith('.apk') && f.path.contains('maxspeed_vpn_v'));
-        for (final f in files) {
+        final allFiles = dir.listSync().whereType<File>()
+            .where((f) => f.path.contains('maxspeed_vpn_v'));
+        for (final f in allFiles) {
           final name = f.uri.pathSegments.last;
           final versionMatch = RegExp(r'v(\d+\.\d+\.\d+)').firstMatch(name);
           if (versionMatch != null) {
@@ -94,14 +102,14 @@ class UpdateManager {
                 status: 'done',
               );
               _progressController.add(_state);
-              debugPrint('UpdateManager: found downloaded APK for $v');
+              debugPrint('UpdateManager: found downloaded update for $v');
               return;
             }
           }
         }
       }
     } catch (e) {
-      debugPrint('UpdateManager: error checking downloaded APKs: $e');
+      debugPrint('UpdateManager: error checking downloaded updates: $e');
     }
 
     // Then check for new updates from GitHub
@@ -167,10 +175,10 @@ class UpdateManager {
       if (info == null || !context.mounted) return;
     }
 
-    // Check if APK already downloaded
+    // Check if already downloaded
     final apk = await getDownloadedApk(_availableUpdate!.version);
     if (apk != null) {
-      _installApk(context, apk);
+      _installUpdate(context, apk);
       return;
     }
 
@@ -194,8 +202,12 @@ class UpdateManager {
     const baseDelay = Duration(seconds: 3);
 
     try {
-      final cacheDir = await getApplicationCacheDirectory();
-      final file = File('${cacheDir.path}/maxspeed_vpn_v${info.version}.apk');
+      final ext = Platform.isAndroid ? '.apk'
+          : Platform.isWindows ? '.zip'
+          : Platform.isMacOS ? '.dmg'
+          : Platform.isLinux ? ''
+          : '.apk';
+      final file = File('${cacheDir.path}/maxspeed_vpn_v${info.version}$ext');
 
       // Already downloaded?
       if (file.existsSync() && file.lengthSync() > 0) {
@@ -309,6 +321,140 @@ class UpdateManager {
     );
   }
 
+  Future<void> _installUpdate(BuildContext context, File file) async {
+    if (Platform.isAndroid) {
+      await _installApk(context, file);
+    } else if (Platform.isWindows) {
+      await _installWindows(file);
+    } else if (Platform.isMacOS) {
+      await _installMacOS(file);
+    } else if (Platform.isLinux) {
+      await _installLinux(file);
+    } else {
+      debugPrint('UpdateManager: unsupported platform for install');
+    }
+  }
+
+  /// Windows: extract .zip → run new .exe → exit(0)
+  Future<void> _installWindows(File zipFile) async {
+    try {
+      // Determine target directory (where current exe lives)
+      final currentExe = Platform.resolvedExecutable;
+      final targetDir = Directory('${currentExe.parent.path}\\..');
+      final tempDir = Directory('${targetDir.path}\\update_temp');
+
+      debugPrint('UpdateManager: installing Windows update from ${zipFile.path}');
+      debugPrint('UpdateManager: targetDir=${targetDir.path}');
+
+      // Clean temp if exists
+      if (tempDir.existsSync()) await tempDir.delete(recursive: true);
+      await tempDir.create(recursive: true);
+
+      // Extract zip via PowerShell
+      final extractResult = await Process.run(
+        'powershell',
+        ['-Command', 'Expand-Archive -Path "${zipFile.path}" -DestinationPath "${tempDir.path}" -Force'],
+        runInShell: true,
+      );
+      if (extractResult.exitCode != 0) {
+        debugPrint('UpdateManager: extract failed: ${extractResult.stderr}');
+        return;
+      }
+
+      // Find the new exe inside extracted folder
+      final extractedFiles = tempDir.listSync(recursive: true);
+      final newExe = extractedFiles
+          .whereType<File>()
+          .firstWhere((f) => f.path.endsWith('.exe'), orElse: () => throw Exception('No .exe in zip'));
+
+      // Create a batch script that:
+      // 1. Waits for current process to exit
+      // 2. Copies new files over old ones
+      // 3. Starts the new exe
+      // 4. Cleans up
+      final batchScript = '''
+@echo off
+timeout /t 2 /nobreak >nul
+xcopy "${tempDir.path}\\*" "${targetDir.path}" /E /Y /I
+start "" "${currentExe.path}"
+del "%~f0"
+''';
+      final batchFile = File('${targetDir.path}\\update.bat');
+      await batchFile.writeAsString(batchScript);
+
+      // Run the batch script detached
+      await Process.start(
+        'cmd',
+        ['/c', 'start', '', batchFile.path],
+        mode: ProcessStartMode.detached,
+        runInShell: true,
+      );
+
+      debugPrint('UpdateManager: update script launched, exiting app');
+      // Exit the app so the batch script can replace files
+      exit(0);
+    } catch (e) {
+      debugPrint('UpdateManager: Windows install error: $e');
+    }
+  }
+
+  /// macOS: mount .dmg → copy to /Applications → restart
+  Future<void> _installMacOS(File dmgFile) async {
+    try {
+      debugPrint('UpdateManager: installing macOS update from ${dmgFile.path}');
+      // Mount DMG
+      final mountResult = await Process.run('hdiutil', ['attach', dmgFile.path]);
+      if (mountResult.exitCode != 0) {
+        debugPrint('UpdateManager: mount failed: ${mountResult.stderr}');
+        return;
+      }
+      // Parse mount point from output
+      final output = mountResult.stdout as String;
+      final lines = output.split('\n');
+      String? mountPoint;
+      for (final line in lines) {
+        if (line.contains('/Volumes/')) {
+          mountPoint = line.trim().split('\t').last.trim();
+          break;
+        }
+      }
+      if (mountPoint == null) {
+        debugPrint('UpdateManager: could not find mount point');
+        return;
+      }
+      // Copy .app to /Applications
+      final apps = Directory(mountPoint).listSync().where((e) => e.path.endsWith('.app'));
+      for (final app in apps) {
+        final appName = app.path.split('/').last;
+        final target = '/Applications/$appName';
+        await Process.run('cp', ['-R', app.path, target]);
+        debugPrint('UpdateManager: copied $appName to /Applications');
+      }
+      // Unmount
+      await Process.run('hdiutil', ['detach', mountPoint]);
+      // Restart
+      final currentExe = Platform.resolvedExecutable;
+      await Process.start(currentExe, [], mode: ProcessStartMode.detached);
+      exit(0);
+    } catch (e) {
+      debugPrint('UpdateManager: macOS install error: $e');
+    }
+  }
+
+  /// Linux: replace binary → restart
+  Future<void> _installLinux(File binaryFile) async {
+    try {
+      final currentExe = Platform.resolvedExecutable;
+      await Process.run('cp', [binaryFile.path, currentExe]);
+      await Process.run('chmod', ['+x', currentExe]);
+      await Process.start(currentExe, [], mode: ProcessStartMode.detached);
+      exit(0);
+    } catch (e) {
+      debugPrint('UpdateManager: Linux install error: $e');
+    }
+  }
+
+  /// Android: use MethodChannel (existing behavior)
   Future<void> _installApk(BuildContext context, File file) async {
     const channel = MethodChannel('ru.maxspeed.maxspeed_vpn/installer');
     try {
@@ -329,7 +475,7 @@ class UpdateManager {
     if (Platform.isIOS) return filename.endsWith('.ipa') || filename.contains('ios');
     if (Platform.isMacOS) return filename.endsWith('.dmg') || filename.contains('macos');
     if (Platform.isLinux) return filename.endsWith('.deb') || filename.endsWith('.AppImage') || filename.contains('linux');
-    if (Platform.isWindows) return filename.endsWith('.exe') || filename.contains('windows');
+    if (Platform.isWindows) return filename.endsWith('.zip') || filename.endsWith('.exe') || filename.contains('windows');
     return false;
   }
 
@@ -415,11 +561,22 @@ class _UpdateDownloadDialogState extends State<_UpdateDownloadDialog> {
             ],
           ),
           actions: [
-            if (isDone || isError)
+            if (isDone)
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  // Find the downloaded file and install
+                  final file = await widget.manager.getDownloadedFile(widget.info.version);
+                  if (file != null && context.mounted) {
+                    widget.manager._installUpdate(context, file);
+                  }
+                },
+                child: Text('Установить', style: TextStyle(color: theme.primary)),
+              ),
+            if (isError)
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text(isDone ? 'Готово' : 'Закрыть',
-                    style: TextStyle(color: theme.primary)),
+                child: Text('Закрыть', style: TextStyle(color: theme.primary)),
               ),
           ],
         );
