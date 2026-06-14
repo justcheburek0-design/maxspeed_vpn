@@ -48,8 +48,6 @@ jobs:
         run: |
           cd android
           ./gradlew assembleRelease --no-daemon
-            -Dorg.gradle.vfs.watch=false \
-            -Dorg.gradle.jvmargs="-Xmx4096m"
         env:
           GRADLE_OPTS: "-Dorg.gradle.vfs.watch=false -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4096m"
           JAVA_TOOL_OPTIONS: "-Dorg.gradle.vfs.watch=false"
