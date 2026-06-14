@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io' show Directory, File, FileMode, Platform, Process, ProcessStartMode;
+import 'dart:io' show Directory, File, FileMode, Platform, Process, ProcessStartMode, exit;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -341,7 +341,8 @@ class UpdateManager {
     try {
       // Determine target directory (where current exe lives)
       final currentExe = Platform.resolvedExecutable;
-      final targetDir = Directory('${currentExe.parent.path}\\..');
+      final currentExeDir = File(currentExe).parent;
+      final targetDir = Directory('${currentExeDir.path}\\..');
       final tempDir = Directory('${targetDir.path}\\update_temp');
 
       debugPrint('UpdateManager: installing Windows update from ${zipFile.path}');
@@ -377,7 +378,7 @@ class UpdateManager {
 @echo off
 timeout /t 2 /nobreak >nul
 xcopy "${tempDir.path}\\*" "${targetDir.path}" /E /Y /I
-start "" "${currentExe.path}"
+start "" "${currentExe}"
 del "%~f0"
 ''';
       final batchFile = File('${targetDir.path}\\update.bat');
