@@ -24,9 +24,7 @@ android {
         targetSdk = 36
         versionCode = 22
         versionName = "1.4.10+22"
-        ndk {
-            // abiFilters removed — using splits.abi instead for per-architecture APKs
-        }
+        // ndk block removed — using splits.abi for per-architecture APKs
     }
 
     splits {
