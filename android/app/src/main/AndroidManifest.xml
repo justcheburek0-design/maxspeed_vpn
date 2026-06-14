@@ -44,6 +44,17 @@
 
     </activity>
 
+        <!-- sing-box VPN Service -->
+        <service
+            android:name="com.tecclub.flutter_singbox.bg.VPNService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync"
+            android:permission="android.permission.BIND_VPN_SERVICE">
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
+        </service>
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
