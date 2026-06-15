@@ -24,7 +24,7 @@ linter:
     # Readability
     sort_child_properties_last: true
     always_declare_return_types: true
-    always_put_control_body_on_new_line: true
+    # always_put_control_body_on_new_line: true — disabled: conflicts with dart format
     avoid_catches_without_on_clauses: true
     avoid_catching_errors: true
     avoid_field_initializers_in_const_classes: true

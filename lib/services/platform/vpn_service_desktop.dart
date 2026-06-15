@@ -5,11 +5,11 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
-import '../../core/constants/app_constants.dart';
-import '../../data/models/vpn_models.dart';
-import '../../vpn/singbox_config_generator.dart';
-import '../vpn_service_interface.dart';
-import 'singbox_downloader.dart';
+import 'package:maxspeed_vpn/core/constants/app_constants.dart';
+import 'package:maxspeed_vpn/data/models/vpn_models.dart';
+import 'package:maxspeed_vpn/vpn/singbox_config_generator.dart';
+import 'package:maxspeed_vpn/services/vpn_service_interface.dart';
+import 'package:maxspeed_vpn/services/platform/singbox_downloader.dart';
 
 /// Desktop VPN via sing-box subprocess.
 ///
@@ -32,7 +32,7 @@ class DesktopVpnService implements VpnService {
   Timer? _statsTimer;
   DateTime? _connectTime;
   String? _configPath;
-  int _apiPort = 1080;
+  final int _apiPort = 1080;
 
   @override
   Stream<VpnConnectionState> get stateStream => _stateController.stream;
@@ -93,6 +93,7 @@ class DesktopVpnService implements VpnService {
           ? await Process.run('where', [cmd], runInShell: true)
           : await Process.run('which', [cmd], runInShell: true);
       return r.exitCode == 0;
+    // ignore: avoid_catches_without_on_clauses
     } catch (_) {
       return false;
     }
@@ -167,7 +168,6 @@ class DesktopVpnService implements VpnService {
       _process = await Process.start(
         bin,
         ['run', '-config', _configPath!, '-C', exeDir],
-        mode: ProcessStartMode.normal,
         workingDirectory: exeDir,
         runInShell: Platform.isWindows,
       );
@@ -180,15 +180,17 @@ class DesktopVpnService implements VpnService {
         _addLog(VpnLogLevel.warning, '[sb!] $line');
       });
 
-      _process!.exitCode.then((code) {
-        _addLog(VpnLogLevel.info, 'sing-box exited: $code');
-        if (_state == VpnConnectionState.connected ||
-            _state == VpnConnectionState.connecting) {
-          _setState(VpnConnectionState.disconnected);
-          _activeServer = null;
-          _stopStatsTimer();
-        }
-      });
+      unawaited(
+        _process!.exitCode.then((code) {
+          _addLog(VpnLogLevel.info, 'sing-box exited: $code');
+          if (_state == VpnConnectionState.connected ||
+              _state == VpnConnectionState.connecting) {
+            _setState(VpnConnectionState.disconnected);
+            _activeServer = null;
+            _stopStatsTimer();
+          }
+        }),
+      );
 
       _activeServer = server;
       _setState(VpnConnectionState.connecting);
@@ -214,6 +216,7 @@ class DesktopVpnService implements VpnService {
       _setState(VpnConnectionState.error);
       _addLog(VpnLogLevel.error, 'sing-box failed to start');
       return false;
+    // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       _addLog(VpnLogLevel.error, 'Connect error: $e');
       _setState(VpnConnectionState.error);
@@ -229,6 +232,7 @@ class DesktopVpnService implements VpnService {
             .get(Uri.parse('http://127.0.0.1:$_apiPort/'))
             .timeout(const Duration(seconds: 1));
         if (r.statusCode < 500) return true;
+      // ignore: avoid_catches_without_on_clauses
       } catch (_) {}
       await Future.delayed(const Duration(milliseconds: 300));
     }
@@ -249,11 +253,13 @@ class DesktopVpnService implements VpnService {
       if (_configPath != null) {
         try {
           await File(_configPath!).delete();
+        // ignore: avoid_catches_without_on_clauses
         } catch (_) {}
         _configPath = null;
       }
       _addLog(VpnLogLevel.info, 'VPN disconnected');
       return true;
+    // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       _addLog(VpnLogLevel.error, 'Disconnect error: $e');
       return false;
@@ -263,10 +269,11 @@ class DesktopVpnService implements VpnService {
   Future<void> _killSingbox() async {
     if (_process != null) {
       _addLog(VpnLogLevel.debug, 'Killing sing-box PID: ${_process!.pid}');
-      _process!.kill(ProcessSignal.sigterm);
+      _process!.kill();
       Future.delayed(const Duration(seconds: 3), () {
         try {
           _process?.kill(ProcessSignal.sigkill);
+        // ignore: avoid_catches_without_on_clauses
         } catch (_) {}
       });
       _process = null;
@@ -281,6 +288,7 @@ class DesktopVpnService implements VpnService {
       } else {
         await Process.run('pkill', ['-f', 'sing-box'], runInShell: true);
       }
+    // ignore: avoid_catches_without_on_clauses
     } catch (_) {}
   }
 
@@ -319,6 +327,7 @@ class DesktopVpnService implements VpnService {
         );
         _statsController.add(_stats);
       }
+    // ignore: avoid_catches_without_on_clauses
     } catch (_) {
       // API may not respond yet or connection issue — use duration-only update
       if (_connectTime != null) {
@@ -351,6 +360,7 @@ class DesktopVpnService implements VpnService {
             .get(Uri.parse('http://127.0.0.1:$_apiPort/'))
             .timeout(const Duration(seconds: 2));
         return 'running (PID: ${_process!.pid}, API: ${r.statusCode})';
+      // ignore: avoid_catches_without_on_clauses
       } catch (_) {
         return 'running (PID: ${_process!.pid}, API unreachable)';
       }
@@ -375,8 +385,9 @@ class DesktopVpnService implements VpnService {
 
   @override
   Future<void> updateServers(List<VpnServer> servers) async {
-    _servers.clear();
-    _servers.addAll(servers);
+    _servers
+      ..clear()
+      ..addAll(servers);
     _serversController.add(List.unmodifiable(_servers));
     _addLog(VpnLogLevel.info, 'Servers updated: ${servers.length}');
   }
@@ -408,6 +419,7 @@ class DesktopVpnService implements VpnService {
         'github.com',
       ).timeout(const Duration(seconds: 5));
       return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+    // ignore: avoid_catches_without_on_clauses
     } catch (_) {
       return false;
     }
@@ -425,8 +437,5 @@ class DesktopVpnService implements VpnService {
   }
 
   @override
-  Future<bool> copyConfigToClipboard(VpnServer server) async {
-    // Desktop: no clipboard copy (config applied automatically)
-    return false;
-  }
+  Future<bool> copyConfigToClipboard(VpnServer server) async => false;
 }

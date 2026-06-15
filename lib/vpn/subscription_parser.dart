@@ -1,7 +1,7 @@
 import 'dart:convert';
-import '../../data/models/vpn_models.dart';
-import '../../data/models/country_flag.dart';
-import 'vless_parser.dart';
+import 'package:maxspeed_vpn/data/models/vpn_models.dart';
+import 'package:maxspeed_vpn/data/models/country_flag.dart';
+import 'package:maxspeed_vpn/vpn/vless_parser.dart';
 
 class SubscriptionParser {
   static List<VpnServer> parse(String rawContent) {
@@ -17,6 +17,7 @@ class SubscriptionParser {
           decoded.contains('ss://')) {
         content = decoded;
       }
+    // ignore: avoid_catches_without_on_clauses
     } catch (_) {}
 
     final servers = <VpnServer>[];
@@ -43,7 +44,8 @@ class SubscriptionParser {
         final cleanName = flag != null
             ? CountryFlagUtil.stripFlag(server.name)
             : server.name;
-        // Extract description: if name contains " | " or " — ", take the part after it
+        // Extract description: if name contains " | " or " — ", take the part
+        // after it
         String? description;
         String finalName = cleanName;
         final descSeparators = [' | ', ' — ', ' - ', ' :: '];
@@ -72,13 +74,7 @@ class SubscriptionParser {
     try {
       final uri = Uri.parse(link);
       return VpnServer(
-        id:
-            'trojan_' +
-            uri.host +
-            '_' +
-            uri.port.toString() +
-            '_' +
-            uri.userInfo,
+        id: 'trojan_${uri.host}_${uri.port}_${uri.userInfo}',
         name: uri.fragment.isNotEmpty
             ? Uri.decodeComponent(uri.fragment)
             : uri.host,
@@ -90,6 +86,7 @@ class SubscriptionParser {
         sni: uri.queryParameters['sni'],
         rawConfig: {'link': link},
       );
+    // ignore: avoid_catches_without_on_clauses
     } catch (_) {
       return null;
     }
@@ -101,13 +98,8 @@ class SubscriptionParser {
       final decoded = utf8.decode(base64Decode(base64Str));
       final json = Map<String, dynamic>.from(jsonDecode(decoded));
       return VpnServer(
-        id:
-            'vmess_' +
-            (json['add'] ?? '') +
-            '_' +
-            (json['port']?.toString() ?? '') +
-            '_' +
-            (json['id'] ?? ''),
+        id: 'vmess_${json['add'] ?? ''}_'
+            '${json['port']?.toString() ?? ''}_${json['id'] ?? ''}',
         name: json['ps'] ?? json['host'] ?? json['add'] ?? '',
         address: json['add'] ?? json['host'] ?? '',
         port: int.tryParse(json['port'].toString()) ?? 443,
@@ -121,6 +113,7 @@ class SubscriptionParser {
         path: json['path'],
         rawConfig: {'link': link, ...json},
       );
+    // ignore: avoid_catches_without_on_clauses
     } catch (_) {
       return null;
     }
@@ -140,6 +133,7 @@ class SubscriptionParser {
             method = parts[0];
             pass = parts.sublist(1).join(':');
           }
+        // ignore: avoid_catches_without_on_clauses
         } catch (_) {
           final parts = userInfo.split(':');
           if (parts.length >= 2) {
@@ -152,15 +146,15 @@ class SubscriptionParser {
           ? Uri.decodeComponent(uri.fragment)
           : uri.host;
       return VpnServer(
-        id: 'ss_' + uri.host + '_' + uri.port.toString() + '_' + (method ?? ''),
+        id: 'ss_${uri.host}_${uri.port}_${method ?? ''}',
         name: name,
         address: uri.host,
         port: uri.port,
         protocol: VpnProtocol.shadowsocks,
-        security: VpnSecurity.none,
         uuid: pass,
         rawConfig: {'link': link, 'method': method},
       );
+    // ignore: avoid_catches_without_on_clauses
     } catch (_) {
       return null;
     }
@@ -185,13 +179,7 @@ class SubscriptionParser {
           ? Uri.decodeComponent(uri.fragment)
           : uri.host;
       return VpnServer(
-        id:
-            'naive_' +
-            uri.host +
-            '_' +
-            uri.port.toString() +
-            '_' +
-            (username ?? ''),
+        id: 'naive_${uri.host}_${uri.port}_${username ?? ''}',
         name: name,
         address: uri.host,
         port: uri.port,
@@ -201,6 +189,7 @@ class SubscriptionParser {
         uuid: password,
         rawConfig: {'link': link},
       );
+    // ignore: avoid_catches_without_on_clauses
     } catch (_) {
       return null;
     }

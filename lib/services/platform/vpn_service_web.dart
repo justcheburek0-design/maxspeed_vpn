@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 
-import '../../data/models/vpn_models.dart';
-import '../../vpn/singbox_config_generator.dart';
-import '../vpn_service_interface.dart';
+import 'package:maxspeed_vpn/data/models/vpn_models.dart';
+import 'package:maxspeed_vpn/vpn/singbox_config_generator.dart';
+import 'package:maxspeed_vpn/services/vpn_service_interface.dart';
 
 /// Web implementation — no VPN in browser.
 /// Features: subscription management, config export, clipboard copy.
@@ -13,9 +13,9 @@ class WebVpnService implements VpnService {
   final _statsController = StreamController<VpnConnectionStats>.broadcast();
   final _logController = StreamController<VpnLogEntry>.broadcast();
 
-  VpnConnectionState _state = VpnConnectionState.disconnected;
+  final VpnConnectionState _state = VpnConnectionState.disconnected;
   VpnServer? _activeServer;
-  VpnConnectionStats _stats = const VpnConnectionStats();
+  final VpnConnectionStats _stats = const VpnConnectionStats();
   final List<VpnLogEntry> _logs = [];
   final List<VpnServer> _servers = [];
   final _serversController = StreamController<List<VpnServer>>.broadcast();
@@ -47,6 +47,7 @@ class WebVpnService implements VpnService {
   }
 
   /// Generate config and copy to clipboard. Returns true if copied.
+  @override
   Future<bool> copyConfigToClipboard(VpnServer server) async {
     try {
       final config = SingboxConfigGenerator.generate(server);
@@ -56,6 +57,7 @@ class WebVpnService implements VpnService {
         'Config for ${server.name} copied to clipboard',
       );
       return true;
+    // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       _addLog(VpnLogLevel.error, 'Clipboard error: $e');
       return false;
@@ -109,8 +111,9 @@ class WebVpnService implements VpnService {
 
   @override
   Future<void> updateServers(List<VpnServer> servers) async {
-    _servers.clear();
-    _servers.addAll(servers);
+    _servers
+      ..clear()
+      ..addAll(servers);
     _serversController.add(List.unmodifiable(_servers));
   }
 

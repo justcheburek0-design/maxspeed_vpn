@@ -3,10 +3,10 @@ import 'dart:convert';
 import 'package:flutter_singbox_vpn/flutter_singbox.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../data/models/vpn_models.dart';
-import '../../vpn/singbox_config_generator.dart';
-import '../../vpn/subscription_parser.dart';
-import '../vpn_service_interface.dart';
+import 'package:maxspeed_vpn/data/models/vpn_models.dart';
+import 'package:maxspeed_vpn/vpn/singbox_config_generator.dart';
+import 'package:maxspeed_vpn/vpn/subscription_parser.dart';
+import 'package:maxspeed_vpn/services/vpn_service_interface.dart';
 
 /// Android-реализация VPN сервиса на базе flutter_singbox_vpn.
 class AndroidVpnService implements VpnService {
@@ -107,6 +107,7 @@ class AndroidVpnService implements VpnService {
         }
         _serversController.add(List.unmodifiable(_servers));
       }
+    // ignore: avoid_catches_without_on_clauses
     } catch (_) {}
   }
 
@@ -115,6 +116,7 @@ class AndroidVpnService implements VpnService {
       final prefs = await SharedPreferences.getInstance();
       final list = _servers.map((s) => _serverToJson(s)).toList();
       await prefs.setString('servers', jsonEncode(list));
+    // ignore: avoid_catches_without_on_clauses
     } catch (_) {}
   }
 
@@ -173,6 +175,7 @@ class AndroidVpnService implements VpnService {
         country: m['country'],
         flag: m['flag'],
       );
+    // ignore: avoid_catches_without_on_clauses
     } catch (_) {
       return null;
     }
@@ -201,28 +204,33 @@ class AndroidVpnService implements VpnService {
         content = url;
       }
       final parsed = SubscriptionParser.parse(content);
-      _servers.clear();
-      _servers.addAll(parsed);
+      _servers
+        ..clear()
+        ..addAll(parsed);
       await _saveServers();
       _serversController.add(List.unmodifiable(_servers));
       _addLog(VpnLogLevel.info, 'Загружено ${parsed.length} серверов');
+    // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       _addLog(VpnLogLevel.error, 'Ошибка загрузки подписки: $e');
     }
   }
 
   /// Заменить список серверов (после парсинга подписки)
+  @override
   Future<void> updateServers(List<VpnServer> newServers) async {
-    _servers.clear();
-    _servers.addAll(newServers);
+    _servers
+      ..clear()
+      ..addAll(newServers);
     await _saveServers();
     _serversController.add(List.unmodifiable(_servers));
   }
 
   VpnLogLevel _parseLogLevel(String msg) {
     final lower = msg.toLowerCase();
-    if (lower.contains('error') || lower.contains('fatal'))
+    if (lower.contains('error') || lower.contains('fatal')) {
       return VpnLogLevel.error;
+    }
     if (lower.contains('warn')) return VpnLogLevel.warning;
     if (lower.contains('debug')) return VpnLogLevel.debug;
     return VpnLogLevel.info;
@@ -235,18 +243,14 @@ class AndroidVpnService implements VpnService {
         _activeServer = null;
         _durationTimer?.cancel();
         _connectTime = null;
-        break;
       case 1:
         _state = VpnConnectionState.connecting;
-        break;
       case 2:
         _state = VpnConnectionState.connected;
         _connectTime = DateTime.now();
         _startDurationTimer();
-        break;
       case 3:
         _state = VpnConnectionState.disconnecting;
-        break;
     }
     _stateController.add(_state);
   }
@@ -280,12 +284,14 @@ class AndroidVpnService implements VpnService {
       );
       _addLog(
         VpnLogLevel.info,
-        'Конфиг (${config.length} bytes): ${config.length > 500 ? '${config.substring(0, 500)}...' : config}',
+        'Конфиг (${config.length} bytes): '
+        '${config.length > 500 ? '${config.substring(0, 500)}...' : config}',
       );
 
       try {
         await _singbox.saveConfig(config);
         _addLog(VpnLogLevel.info, 'saveConfig OK');
+      // ignore: avoid_catches_without_on_clauses
       } catch (e) {
         _addLog(VpnLogLevel.error, 'saveConfig FAILED: $e');
         _state = VpnConnectionState.error;
@@ -304,6 +310,7 @@ class AndroidVpnService implements VpnService {
           },
         );
         _addLog(VpnLogLevel.info, 'startVPN вернул: $started');
+      // ignore: avoid_catches_without_on_clauses
       } catch (e) {
         _addLog(VpnLogLevel.error, 'startVPN EXCEPTION: $e');
         started = false;
@@ -317,7 +324,8 @@ class AndroidVpnService implements VpnService {
         return false;
       }
 
-      // Ждём подтверждения что сервис реально стартанул (statusCode == 2 = Started)
+      // Ждём подтверждения что сервис реально стартанул
+      // (statusCode == 2 = Started)
       _addLog(VpnLogLevel.info, 'Ожидание статуса Started...');
       final completer = Completer<VpnConnectionState>();
       late StreamSubscription sub;
@@ -351,6 +359,7 @@ class AndroidVpnService implements VpnService {
             'Получено ${buffered.length} буферизованных логов sing-box',
           );
         }
+      // ignore: avoid_catches_without_on_clauses
       } catch (_) {}
 
       try {
@@ -387,10 +396,11 @@ class AndroidVpnService implements VpnService {
         }
         _addLog(VpnLogLevel.info, 'VPN подтверждён: connected');
       } finally {
-        sub.cancel();
+        await sub.cancel();
       }
 
       return true;
+    // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       _state = VpnConnectionState.error;
       _activeServer = null;
@@ -406,13 +416,14 @@ class AndroidVpnService implements VpnService {
       _state = VpnConnectionState.disconnecting;
       _stateController.add(_state);
       return await _singbox.stopVPN();
+    // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       return false;
     }
   }
 
   @override
-  Future<String> getStatus() async => await _singbox.getVPNStatus();
+  Future<String> getStatus() async => _singbox.getVPNStatus();
 
   @override
   Future<List<InstalledApp>> getInstalledApps() async {
@@ -422,8 +433,9 @@ class AndroidVpnService implements VpnService {
       final map = item as Map;
       final pkg = map['packageName'] as String? ?? '';
       final name = map['appName'] as String? ?? pkg.split('.').last;
-      if (pkg.isNotEmpty)
+      if (pkg.isNotEmpty) {
         apps.add(InstalledApp(packageName: pkg, appName: name));
+      }
     }
     return apps;
   }
@@ -439,9 +451,8 @@ class AndroidVpnService implements VpnService {
   }
 
   @override
-  Future<List<String>> getPerAppProxyList() async {
-    return await _singbox.getPerAppProxyList();
-  }
+  Future<List<String>> getPerAppProxyList() async =>
+      _singbox.getPerAppProxyList();
 
   void _addLog(VpnLogLevel level, String message) {
     final entry = VpnLogEntry(
@@ -470,8 +481,5 @@ class AndroidVpnService implements VpnService {
   }
 
   @override
-  Future<bool> copyConfigToClipboard(VpnServer server) async {
-    // Android: no clipboard copy (config applied automatically)
-    return false;
-  }
+  Future<bool> copyConfigToClipboard(VpnServer server) async => false;
 }

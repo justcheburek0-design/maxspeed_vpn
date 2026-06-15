@@ -1,5 +1,5 @@
 import 'dart:async';
-import '../../data/models/vpn_models.dart';
+import 'package:maxspeed_vpn/data/models/vpn_models.dart';
 
 /// Абстрактный VPN сервис — платформонезависимый интерфейс.
 /// Каждая платформа предоставляет свою реализацию.

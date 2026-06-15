@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../data/models/vpn_models.dart';
+import 'package:maxspeed_vpn/data/models/vpn_models.dart';
 
 // ─── INCY-style Material3 Dark Theme ───
 // Background: #0A0A0D, Accent: #A8E63D (yellow-green)
@@ -390,7 +390,7 @@ class AppTheme {
             onSecondaryContainer: onSecondaryContainer,
             surface: surface,
             onSurface: onSurface,
-            surfaceVariant: surfaceVariant,
+            surfaceContainerHighest: surfaceVariant,
             onSurfaceVariant: onSurfaceVariant,
             outline: outline,
             outlineVariant: outlineVariant,
@@ -411,7 +411,7 @@ class AppTheme {
             onSecondaryContainer: onSecondaryContainer,
             surface: surface,
             onSurface: onSurface,
-            surfaceVariant: surfaceVariant,
+            surfaceContainerHighest: surfaceVariant,
             onSurfaceVariant: onSurfaceVariant,
             outline: outline,
             outlineVariant: outlineVariant,

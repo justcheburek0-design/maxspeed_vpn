@@ -18,13 +18,12 @@ void showAppNotification(
       borderRadius: BorderRadius.circular(12),
       border: Border.all(
         color: isError
-            ? const Color(0xFFFF7043).withOpacity(0.3)
-            : const Color(0xFF2A4A00).withOpacity(0.5),
-        width: 1,
+            ? const Color(0xFFFF7043).withValues(alpha: 0.3)
+            : const Color(0xFF2A4A00).withValues(alpha: 0.5),
       ),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(0.4),
+          color: Colors.black.withValues(alpha: 0.4),
           blurRadius: 12,
           offset: const Offset(0, 4),
         ),
@@ -68,12 +67,10 @@ void showAppNotification(
           tween: Tween(begin: 0.0, end: 1.0),
           duration: const Duration(milliseconds: 250),
           curve: Curves.easeOutCubic,
-          builder: (context, value, child) {
-            return Transform.translate(
-              offset: Offset(0, -20 * (1 - value)),
-              child: Opacity(opacity: value, child: child),
-            );
-          },
+          builder: (context, value, child) => Transform.translate(
+            offset: Offset(0, -20 * (1 - value)),
+            child: Opacity(opacity: value, child: child),
+          ),
           child: content,
         ),
       ),

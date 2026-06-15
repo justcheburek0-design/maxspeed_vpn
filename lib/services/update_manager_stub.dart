@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'update_info.dart';
+import 'package:maxspeed_vpn/services/update_info.dart';
 
 class UpdateDownloadState {
   final double progress;

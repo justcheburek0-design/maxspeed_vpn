@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import '../../data/models/vpn_models.dart';
+import 'package:maxspeed_vpn/data/models/vpn_models.dart';
 
 class VlessLink {
   final String uuid;
@@ -46,29 +46,27 @@ class VlessLink {
     this.description,
   });
 
-  VpnServer toServer() {
-    return VpnServer(
-      id: '${address}_${port}_$uuid',
-      name: name,
-      address: address,
-      port: port,
-      protocol: VpnProtocol.vless,
-      security: security,
-      uuid: uuid,
-      sni: sni,
-      fingerprint: fingerprint,
-      publicKey: publicKey,
-      shortId: shortId,
-      path: path,
-      host: host,
-      alpn: alpn,
-      flow: isReality && (flow == null || flow!.isEmpty)
-          ? 'xtls-rprx-vision'
-          : flow,
-      rawConfig: {'link': raw},
-      description: description,
-    );
-  }
+  VpnServer toServer() => VpnServer(
+    id: '${address}_${port}_$uuid',
+    name: name,
+    address: address,
+    port: port,
+    protocol: VpnProtocol.vless,
+    security: security,
+    uuid: uuid,
+    sni: sni,
+    fingerprint: fingerprint,
+    publicKey: publicKey,
+    shortId: shortId,
+    path: path,
+    host: host,
+    alpn: alpn,
+    flow: isReality && (flow == null || flow!.isEmpty)
+        ? 'xtls-rprx-vision'
+        : flow,
+    rawConfig: {'link': raw},
+    description: description,
+  );
 
   bool get isReality => security == VpnSecurity.reality;
   bool get isTls => security == VpnSecurity.tls;
@@ -91,11 +89,9 @@ class VlessParser {
         switch (sec.toLowerCase()) {
           case 'reality':
             security = VpnSecurity.reality;
-            break;
           case 'tls':
           case 'ssl':
             security = VpnSecurity.tls;
-            break;
         }
       }
 
@@ -108,7 +104,6 @@ class VlessParser {
         address: uri.host,
         port: uri.port,
         name: name,
-        protocol: VpnProtocol.vless,
         security: security,
         sni: uri.queryParameters['sni'] ?? uri.queryParameters['peer'],
         fingerprint:
@@ -125,8 +120,9 @@ class VlessParser {
         encryption: uri.queryParameters['encryption'],
         raw: link,
       );
+    // ignore: avoid_catches_without_on_clauses
     } catch (e) {
-      debugPrint('VLESS parse error: ' + e.toString());
+      debugPrint('VLESS parse error: $e');
       return null;
     }
   }

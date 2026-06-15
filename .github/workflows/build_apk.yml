@@ -29,7 +29,7 @@ jobs:
         run: flutter pub get
 
       - name: Check formatting (dart format)
-        run: dart format --set-exit-if-changed --output=none lib/ test/
+        run: dart format --set-exit-if-changed --output=none lib/ test/ integration_test/
 
       - name: Static analysis (dart analyze)
         run: dart analyze --fatal-infos lib/ test/

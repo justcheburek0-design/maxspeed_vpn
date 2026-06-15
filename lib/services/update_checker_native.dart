@@ -2,17 +2,16 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io'
     show Directory, File, FileMode, Platform, Process, ProcessStartMode, exit;
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart'
     show getApplicationCacheDirectory;
-import '../core/constants/app_constants.dart';
-import '../core/utils/notifications.dart';
-import '../core/theme/app_themes.dart';
-import 'update_info.dart';
+import 'package:maxspeed_vpn/core/constants/app_constants.dart';
+import 'package:maxspeed_vpn/core/utils/notifications.dart';
+import 'package:maxspeed_vpn/core/theme/app_themes.dart';
+import 'package:maxspeed_vpn/services/update_info.dart';
 
 /// Download progress state for UI binding.
 class UpdateDownloadState {
@@ -39,7 +38,8 @@ class UpdateDownloadState {
 }
 
 /// Singleton that manages update checking + background download.
-/// Survives widget rebuilds; does NOT survive app restart (re-checks file on start).
+/// Survives widget rebuilds; does NOT survive app restart (re-checks file on
+/// start).
 class UpdateManager {
   UpdateManager._();
   static final UpdateManager instance = UpdateManager._();
@@ -75,6 +75,7 @@ class UpdateManager {
           : '.apk';
       final file = File('${cacheDir.path}/maxspeed_vpn_v$version$ext');
       if (file.existsSync() && file.lengthSync() > 0) return file;
+    // ignore: avoid_catches_without_on_clauses
     } catch (_) {}
     return null;
   }
@@ -82,7 +83,8 @@ class UpdateManager {
   /// Legacy alias (kept for compatibility)
   Future<File?> getDownloadedApk(String version) => getDownloadedFile(version);
 
-  /// Call once on app start. Checks for update, downloads in background if found.
+  /// Call once on app start. Checks for update, downloads in background if
+  /// found.
   Future<void> initialize() async {
     // Check if we already downloaded an update that hasn't been installed
     final packageInfo = await PackageInfo.fromPlatform();
@@ -116,6 +118,7 @@ class UpdateManager {
           }
         }
       }
+    // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       debugPrint('UpdateManager: error checking downloaded updates: $e');
     }
@@ -169,10 +172,11 @@ class UpdateManager {
           publishedAt: publishedAt,
         );
         // Start background download
-        _startBackgroundDownload(_availableUpdate!);
+        unawaited(_startBackgroundDownload(_availableUpdate!));
         return _availableUpdate;
       }
       return null;
+    // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       debugPrint('UpdateManager: check failed: $e');
       return null;
@@ -195,20 +199,18 @@ class UpdateManager {
 
     // Check if already downloaded
     final apk = await getDownloadedApk(_availableUpdate!.version);
-    if (apk != null) {
-      if (context.mounted) {
-        showAppNotification(
-          context,
-          'Установка обновления v${_availableUpdate!.version}...',
-        );
-      }
+    if (apk != null && context.mounted) {
+      showAppNotification(
+        context,
+        'Установка обновления v${_availableUpdate!.version}...',
+      );
       await _installUpdate(context, apk);
       return;
     }
 
     // Start fresh download with dialog
     if (!_isDownloading) {
-      _startBackgroundDownload(_availableUpdate!);
+      unawaited(_startBackgroundDownload(_availableUpdate!));
     }
 
     if (context.mounted) {
@@ -335,6 +337,7 @@ class UpdateManager {
       );
       _isUpdateReady = true;
       _progressController.add(_state);
+    // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       debugPrint('UpdateManager: download error (attempt $attempt): $e');
       if (attempt < maxRetries) {
@@ -401,7 +404,8 @@ class UpdateManager {
       debugPrint('UpdateManager: targetDir=${targetDir.path}');
       debugPrint('UpdateManager: currentExe=$currentExe');
       debugPrint(
-        'UpdateManager: zip exists=${zipFile.existsSync()}, size=${zipFile.lengthSync()}',
+        'UpdateManager: zip exists=${zipFile.existsSync()}, '
+        'size=${zipFile.lengthSync()}',
       );
 
       // Clean temp if exists
@@ -411,7 +415,8 @@ class UpdateManager {
       // Extract zip via PowerShell
       final extractResult = await Process.run('powershell', [
         '-Command',
-        'Expand-Archive -Path "${zipFile.path}" -DestinationPath "${tempDir.path}" -Force',
+        'Expand-Archive -Path "${zipFile.path}" '
+        '-DestinationPath "${tempDir.path}" -Force',
       ], runInShell: true);
       debugPrint('UpdateManager: extract exit=${extractResult.exitCode}');
       if (extractResult.exitCode != 0) {
@@ -438,7 +443,7 @@ class UpdateManager {
 @echo off
 timeout /t 2 /nobreak >nul
 xcopy "${tempDir.path}\\*" "${targetDir.path}" /E /Y /I
-start "" "${currentExe}"
+start "" "$currentExe"
 del "%~f0"
 ''';
       final batchFile = File('${targetDir.path}\\update.bat');
@@ -455,6 +460,7 @@ del "%~f0"
       debugPrint('UpdateManager: update script launched, exiting app');
       // Exit the app so the batch script can replace files
       exit(0);
+    // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       debugPrint('UpdateManager: Windows install error: $e');
     }
@@ -503,6 +509,7 @@ del "%~f0"
       final currentExe = Platform.resolvedExecutable;
       await Process.start(currentExe, [], mode: ProcessStartMode.detached);
       exit(0);
+    // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       debugPrint('UpdateManager: macOS install error: $e');
     }
@@ -516,6 +523,7 @@ del "%~f0"
       await Process.run('chmod', ['+x', currentExe]);
       await Process.start(currentExe, [], mode: ProcessStartMode.detached);
       exit(0);
+    // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       debugPrint('UpdateManager: Linux install error: $e');
     }
@@ -529,10 +537,12 @@ del "%~f0"
         'path': file.path,
       });
       if (result != true) throw Exception('installApk returned false');
+    // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       debugPrint('installApk failed: $e');
       try {
         await channel.invokeMethod('openFile', {'path': file.path});
+      // ignore: avoid_catches_without_on_clauses
       } catch (_) {}
     }
   }
@@ -541,18 +551,22 @@ del "%~f0"
 
   static bool _matchesPlatform(String filename) {
     if (Platform.isAndroid) return filename.endsWith('.apk');
-    if (Platform.isIOS)
+    if (Platform.isIOS) {
       return filename.endsWith('.ipa') || filename.contains('ios');
-    if (Platform.isMacOS)
+    }
+    if (Platform.isMacOS) {
       return filename.endsWith('.dmg') || filename.contains('macos');
-    if (Platform.isLinux)
+    }
+    if (Platform.isLinux) {
       return filename.endsWith('.deb') ||
           filename.endsWith('.AppImage') ||
           filename.contains('linux');
-    if (Platform.isWindows)
+    }
+    if (Platform.isWindows) {
       return filename.endsWith('.zip') ||
           filename.endsWith('.exe') ||
           filename.contains('windows');
+    }
     return false;
   }
 
@@ -568,8 +582,12 @@ del "%~f0"
     final maxLen = aParts.length > bParts.length
         ? aParts.length
         : bParts.length;
-    while (aParts.length < maxLen) aParts.add(0);
-    while (bParts.length < maxLen) bParts.add(0);
+    while (aParts.length < maxLen) {
+      aParts.add(0);
+    }
+    while (bParts.length < maxLen) {
+      bParts.add(0);
+    }
     for (int i = 0; i < maxLen; i++) {
       if (aParts[i] != bParts[i]) return aParts[i].compareTo(bParts[i]);
     }
@@ -661,7 +679,7 @@ class _UpdateDownloadDialogState extends State<_UpdateDownloadDialog> {
                     widget.info.version,
                   );
                   if (file != null && context.mounted) {
-                    widget.manager._installUpdate(context, file);
+                    await widget.manager._installUpdate(context, file);
                   }
                 },
                 child: Text(
@@ -704,9 +722,8 @@ class _UpdateDownloadDialogState extends State<_UpdateDownloadDialog> {
 // ─── Legacy API (kept for compatibility with update_api_native.dart) ───
 
 class UpdateChecker {
-  static Future<UpdateInfo?> checkForUpdate() async {
-    return UpdateManager.instance.checkAndDownloadInBackground();
-  }
+  static Future<UpdateInfo?> checkForUpdate() async =>
+      UpdateManager.instance.checkAndDownloadInBackground();
 
   static Future<void> downloadAndInstall(
     BuildContext context,
@@ -719,70 +736,81 @@ class UpdateChecker {
 
 Future<void> showUpdateDialog(BuildContext context, UpdateInfo info) async {
   final theme = GlassTheme.of(context);
-  showDialog(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      backgroundColor: theme.surface,
-      surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: Row(
-        children: [
-          Icon(Icons.system_update, color: theme.primary),
-          const SizedBox(width: 12),
-          Text('Доступно обновление', style: TextStyle(color: theme.onSurface)),
-        ],
-      ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Новая версия: ${info.version}',
-            style: TextStyle(color: theme.primary, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          if (info.releaseNotes.isNotEmpty) ...[
+  unawaited(
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: theme.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.system_update, color: theme.primary),
+            const SizedBox(width: 12),
             Text(
-              'Что нового:',
-              style: TextStyle(
-                color: theme.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Container(
-              constraints: const BoxConstraints(maxHeight: 200),
-              child: SingleChildScrollView(
-                child: Text(
-                  info.releaseNotes,
-                  style: TextStyle(color: theme.onSurfaceVariant, fontSize: 13),
-                ),
-              ),
+              'Доступно обновление',
+              style: TextStyle(color: theme.onSurface),
             ),
           ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Новая версия: ${info.version}',
+              style: TextStyle(
+                color: theme.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (info.releaseNotes.isNotEmpty) ...[
+              Text(
+                'Что нового:',
+                style: TextStyle(
+                  color: theme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Container(
+                constraints: const BoxConstraints(maxHeight: 200),
+                child: SingleChildScrollView(
+                  child: Text(
+                    info.releaseNotes,
+                    style: TextStyle(
+                      color: theme.onSurfaceVariant,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Позже', style: TextStyle(color: theme.outline)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.primary,
+              foregroundColor: theme.onPrimary,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              UpdateManager.instance._availableUpdate = info;
+              unawaited(UpdateManager.instance.downloadAndInstall(context));
+            },
+            child: const Text('Обновить'),
+          ),
         ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx),
-          child: Text('Позже', style: TextStyle(color: theme.outline)),
-        ),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: theme.primary,
-            foregroundColor: theme.onPrimary,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-          onPressed: () {
-            Navigator.pop(ctx);
-            UpdateManager.instance._availableUpdate = info;
-            UpdateManager.instance.downloadAndInstall(context);
-          },
-          child: const Text('Обновить'),
-        ),
-      ],
     ),
   );
 }

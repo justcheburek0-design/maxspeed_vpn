@@ -47,6 +47,7 @@ class DeepLinkHandler {
     try {
       final link = await _channel.invokeMethod<String>('getInitialLink');
       return link;
+    // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       debugPrint('DeepLink getInitialLink error: $e');
       return null;

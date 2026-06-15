@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../core/theme/app_themes.dart';
-import '../../data/models/vpn_models.dart';
+import 'package:maxspeed_vpn/core/theme/app_themes.dart';
+import 'package:maxspeed_vpn/data/models/vpn_models.dart';
 
 class PowerButton extends StatefulWidget {
   final VpnConnectionState state;
@@ -50,17 +50,21 @@ class _PowerButtonState extends State<PowerButton>
       _rotationController.stop();
     } else if (widget.state == VpnConnectionState.connecting ||
         widget.state == VpnConnectionState.reconnecting) {
-      _pulseController.stop();
-      _pulseController.reset();
+      _pulseController
+          ..stop()
+          ..reset();
       _glowController.stop();
       _rotationController.repeat();
     } else {
-      _pulseController.stop();
-      _pulseController.reset();
-      _glowController.stop();
-      _glowController.reset();
-      _rotationController.stop();
-      _rotationController.reset();
+      _pulseController
+        ..stop()
+        ..reset();
+      _glowController
+        ..stop()
+        ..reset();
+      _rotationController
+        ..stop()
+        ..reset();
     }
   }
 

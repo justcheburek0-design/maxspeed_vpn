@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
-import '../../core/constants/app_constants.dart';
-import '../../data/models/vpn_models.dart';
-import '../vpn_service_interface.dart';
+import 'package:maxspeed_vpn/core/constants/app_constants.dart';
+import 'package:maxspeed_vpn/data/models/vpn_models.dart';
+import 'package:maxspeed_vpn/services/vpn_service_interface.dart';
 
 /// iOS VPN via NetworkExtension platform channel.
 ///
@@ -65,18 +65,14 @@ class IosVpnService implements VpnService {
           _setState(VpnConnectionState.connected);
           _connectTime = DateTime.now();
           _startStatsTimer();
-          break;
         case 'disconnected':
           _setState(VpnConnectionState.disconnected);
           _activeServer = null;
           _stopStatsTimer();
-          break;
         case 'connecting':
           _setState(VpnConnectionState.connecting);
-          break;
         case 'error':
           _setState(VpnConnectionState.error);
-          break;
       }
     }
   }
@@ -108,6 +104,7 @@ class IosVpnService implements VpnService {
       _addLog(VpnLogLevel.error, 'Platform error: ${e.message}');
       _setState(VpnConnectionState.error);
       return false;
+    // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       _addLog(VpnLogLevel.error, 'Connect error: $e');
       _setState(VpnConnectionState.error);
@@ -124,6 +121,7 @@ class IosVpnService implements VpnService {
       _activeServer = null;
       _stopStatsTimer();
       return true;
+    // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       _addLog(VpnLogLevel.error, 'Disconnect error: $e');
       return false;
@@ -135,6 +133,7 @@ class IosVpnService implements VpnService {
     try {
       final s = await _channel.invokeMethod<String>('getStatus');
       return s ?? 'unknown';
+    // ignore: avoid_catches_without_on_clauses
     } catch (_) {
       return 'error';
     }
@@ -157,8 +156,9 @@ class IosVpnService implements VpnService {
 
   @override
   Future<void> updateServers(List<VpnServer> servers) async {
-    _servers.clear();
-    _servers.addAll(servers);
+    _servers
+      ..clear()
+      ..addAll(servers);
     _serversController.add(List.unmodifiable(_servers));
     _addLog(VpnLogLevel.info, 'Servers updated: ${servers.length}');
   }
@@ -169,11 +169,7 @@ class IosVpnService implements VpnService {
     _statsTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (_connectTime == null) return;
       final duration = DateTime.now().difference(_connectTime!);
-      _stats = VpnConnectionStats(
-        uploadTotal: 0,
-        downloadTotal: 0,
-        duration: duration,
-      );
+      _stats = VpnConnectionStats(duration: duration);
       _statsController.add(_stats);
     });
   }
@@ -216,8 +212,5 @@ class IosVpnService implements VpnService {
   }
 
   @override
-  Future<bool> copyConfigToClipboard(VpnServer server) async {
-    // iOS: no clipboard copy (config applied automatically)
-    return false;
-  }
+  Future<bool> copyConfigToClipboard(VpnServer server) async => false;
 }

@@ -1,9 +1,9 @@
 import 'dart:io' show Platform;
 
-import '../vpn_service_interface.dart';
-import 'vpn_service_android.dart';
-import 'vpn_service_ios.dart';
-import 'vpn_service_desktop.dart';
+import 'package:maxspeed_vpn/services/vpn_service_interface.dart';
+import 'package:maxspeed_vpn/services/platform/vpn_service_android.dart';
+import 'package:maxspeed_vpn/services/platform/vpn_service_ios.dart';
+import 'package:maxspeed_vpn/services/platform/vpn_service_desktop.dart';
 
 VpnService platformCreateVpnService() {
   if (Platform.isAndroid) {

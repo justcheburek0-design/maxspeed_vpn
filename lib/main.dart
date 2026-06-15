@@ -3,15 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'core/constants/app_constants.dart';
-import 'core/theme/app_themes.dart';
-import 'core/deeplink/deep_link_handler.dart';
-import 'presentation/screens/home_screen.dart';
-import 'presentation/screens/settings_screen.dart';
-import 'services/vpn_service_factory.dart';
-import 'services/vpn_service_interface.dart';
-import 'services/update_manager_export.dart';
-import '../core/utils/notifications.dart';
+import 'package:maxspeed_vpn/core/constants/app_constants.dart';
+import 'package:maxspeed_vpn/core/theme/app_themes.dart';
+import 'package:maxspeed_vpn/core/deeplink/deep_link_handler.dart';
+import 'package:maxspeed_vpn/presentation/screens/home_screen.dart';
+import 'package:maxspeed_vpn/presentation/screens/settings_screen.dart';
+import 'package:maxspeed_vpn/services/vpn_service_factory.dart';
+import 'package:maxspeed_vpn/services/vpn_service_interface.dart';
+import 'package:maxspeed_vpn/services/update_manager_export.dart';
+import 'package:maxspeed_vpn/core/utils/notifications.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,7 +44,7 @@ class _MaxSpeedVpnAppState extends State<MaxSpeedVpnApp> {
     setState(() => _themeId = prefs.getString('theme') ?? 'incy');
   }
 
-  void _onThemeChanged(String id) async {
+  Future<void> _onThemeChanged(String id) async {
     setState(() => _themeId = id);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('theme', id);
@@ -98,8 +98,10 @@ class _MainScreenState extends State<MainScreen> {
   Future<void> _loadVersion() async {
     try {
       final info = await PackageInfo.fromPlatform();
-      if (mounted)
+      if (mounted) {
         setState(() => _appVersion = '${info.version}+${info.buildNumber}');
+      }
+    // ignore: avoid_catches_without_on_clauses
     } catch (_) {}
   }
 
@@ -337,13 +339,11 @@ class _MainScreenState extends State<MainScreen> {
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.4),
               blurRadius: 30,
-              spreadRadius: 0,
               offset: const Offset(0, 10),
             ),
             BoxShadow(
               color: theme.primary.withValues(alpha: 0.05),
               blurRadius: 20,
-              spreadRadius: 0,
               offset: const Offset(0, 4),
             ),
           ],

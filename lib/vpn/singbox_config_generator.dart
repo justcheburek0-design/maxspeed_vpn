@@ -1,6 +1,6 @@
 import 'dart:convert';
-import '../../core/constants/app_constants.dart';
-import '../../data/models/vpn_models.dart';
+import 'package:maxspeed_vpn/core/constants/app_constants.dart';
+import 'package:maxspeed_vpn/data/models/vpn_models.dart';
 
 class SingboxConfigGenerator {
   static String generate(VpnServer server) {
@@ -116,10 +116,12 @@ class SingboxConfigGenerator {
     final tls = <String, dynamic>{};
     if (server.isTls) {
       tls['enabled'] = true;
-      if (server.sni != null && server.sni!.isNotEmpty)
+      if (server.sni != null && server.sni!.isNotEmpty) {
         tls['server_name'] = server.sni;
-      if (server.alpn != null && server.alpn!.isNotEmpty)
+      }
+      if (server.alpn != null && server.alpn!.isNotEmpty) {
         tls['alpn'] = server.alpn!.split(',');
+      }
       tls['utls'] = {
         'enabled': true,
         'fingerprint':
@@ -127,8 +129,9 @@ class SingboxConfigGenerator {
       };
     } else if (server.isReality) {
       tls['enabled'] = true;
-      if (server.sni != null && server.sni!.isNotEmpty)
+      if (server.sni != null && server.sni!.isNotEmpty) {
         tls['server_name'] = server.sni;
+      }
       tls['utls'] = {
         'enabled': true,
         'fingerprint':
@@ -147,24 +150,22 @@ class SingboxConfigGenerator {
     return outbound;
   }
 
-  static Map<String, dynamic> _buildTrojanOutbound(VpnServer server) {
-    return {
-      'type': 'trojan',
-      'tag': 'vpn',
-      'server': server.address,
-      'server_port': server.port,
-      'password': server.uuid ?? '',
-      'tls': {
+  static Map<String, dynamic> _buildTrojanOutbound(VpnServer server) => {
+    'type': 'trojan',
+    'tag': 'vpn',
+    'server': server.address,
+    'server_port': server.port,
+    'password': server.uuid ?? '',
+    'tls': {
+      'enabled': true,
+      'server_name': server.sni ?? server.address,
+      'utls': {
         'enabled': true,
-        'server_name': server.sni ?? server.address,
-        'utls': {
-          'enabled': true,
-          'fingerprint':
-              server.fingerprint ?? SingboxConstants.defaultFingerprint,
-        },
+        'fingerprint':
+            server.fingerprint ?? SingboxConstants.defaultFingerprint,
       },
-    };
-  }
+    },
+  };
 
   static Map<String, dynamic> _buildShadowsocksOutbound(VpnServer server) {
     final method =

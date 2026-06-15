@@ -30,7 +30,7 @@ class SingboxDownloader {
   static Future<String> get _cacheDir async {
     final appDir = Platform.resolvedExecutable.replaceAll('\\', '/');
     final dir = appDir.substring(0, appDir.lastIndexOf('/'));
-    return '$dir';
+    return dir;
   }
 
   /// Full path to the expected sing-box binary.
@@ -40,9 +40,7 @@ class SingboxDownloader {
   }
 
   /// Check if sing-box binary already exists locally.
-  static Future<bool> isDownloaded() async {
-    return File(await binaryPath).exists();
-  }
+  static Future<bool> isDownloaded() async => File(await binaryPath).exists();
 
   /// Fetch the latest version from GitHub API.
   static Future<String?> _fetchLatestVersion() async {
@@ -57,6 +55,7 @@ class SingboxDownloader {
           return tag.substring(1); // strip 'v' prefix
         }
       }
+    // ignore: avoid_catches_without_on_clauses
     } catch (_) {}
     return null;
   }
@@ -146,6 +145,7 @@ class SingboxDownloader {
         // Cleanup extracted dir
         try {
           await Directory(extractedDir).delete(recursive: true);
+        // ignore: avoid_catches_without_on_clauses
         } catch (_) {}
       } else if (await File('$dir/$_binaryName').exists()) {
         // Already in root of archive
@@ -155,6 +155,7 @@ class SingboxDownloader {
       // Cleanup archive
       try {
         await File(archivePath).delete();
+      // ignore: avoid_catches_without_on_clauses
       } catch (_) {}
 
       // Make executable on Unix
@@ -163,10 +164,12 @@ class SingboxDownloader {
       }
 
       return await File(outputPath).exists() ? outputPath : null;
+    // ignore: avoid_catches_without_on_clauses
     } catch (_) {
       // Cleanup on failure
       try {
         await File(archivePath).delete();
+      // ignore: avoid_catches_without_on_clauses
       } catch (_) {}
       return null;
     }

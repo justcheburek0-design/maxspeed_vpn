@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 /// Maps country names / ISO codes to flag emojis.
 /// Covers the most common countries used in VPN subscriptions.
 const Map<String, String> _countryFlagMap = {
@@ -89,7 +87,8 @@ class CountryFlagUtil {
   /// Try to extract a flag emoji from a server name.
   ///
   /// Strategy:
-  /// 1. Check if the name already starts with a flag emoji (two regional indicators).
+  /// 1. Check if the name already starts with a flag emoji (two regional
+  ///    indicators).
   /// 2. Look up country/city name (english or russian) in the map.
   /// 3. Fallback: return null.
   static String? extractFlag(String name) {
@@ -140,9 +139,8 @@ class CountryFlagUtil {
     return name;
   }
 
-  static bool _isRegionalIndicator(int codePoint) {
-    return codePoint >= _regionalIndicatorA && codePoint <= _regionalIndicatorZ;
-  }
+  static bool _isRegionalIndicator(int codePoint) =>
+      codePoint >= _regionalIndicatorA && codePoint <= _regionalIndicatorZ;
 
   static String? _extractLeadingFlagEmoji(String name) {
     final runes = name.runes.toList();

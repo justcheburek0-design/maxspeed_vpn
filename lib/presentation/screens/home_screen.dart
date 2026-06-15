@@ -5,13 +5,13 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../core/constants/app_constants.dart';
-import '../../core/theme/app_themes.dart';
-import '../../data/models/vpn_models.dart';
-import '../../services/vpn_service_interface.dart';
-import '../../services/update_manager_export.dart';
-import '../widgets/power_button.dart';
-import '../../core/utils/notifications.dart';
+import 'package:maxspeed_vpn/core/constants/app_constants.dart';
+import 'package:maxspeed_vpn/core/theme/app_themes.dart';
+import 'package:maxspeed_vpn/data/models/vpn_models.dart';
+import 'package:maxspeed_vpn/services/vpn_service_interface.dart';
+import 'package:maxspeed_vpn/services/update_manager_export.dart';
+import 'package:maxspeed_vpn/presentation/widgets/power_button.dart';
+import 'package:maxspeed_vpn/core/utils/notifications.dart';
 
 class HomeScreen extends StatefulWidget {
   final VpnService vpnService;
@@ -142,57 +142,51 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildWebLayout(AppTheme theme) {
-    return Stack(
-      children: [
-        _buildBg(theme),
-        SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 48, 16, 24),
-          child: Column(
-            children: [
-              _buildSubscriptionCard(context, theme),
-              const SizedBox(height: 20),
-              _buildWebDownloadSection(context, theme),
-              const SizedBox(height: 20),
-              _buildServersSection(context, theme),
-              const SizedBox(height: 100),
-            ],
-          ),
+  Widget _buildWebLayout(AppTheme theme) => Stack(
+    children: [
+      _buildBg(theme),
+      SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 48, 16, 24),
+        child: Column(
+          children: [
+            _buildSubscriptionCard(context, theme),
+            const SizedBox(height: 20),
+            _buildWebDownloadSection(context, theme),
+            const SizedBox(height: 20),
+            _buildServersSection(context, theme),
+            const SizedBox(height: 100),
+          ],
         ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
 
-  Widget _buildBg(AppTheme theme) {
-    return AnimatedBuilder(
-      animation: _bgAnimController,
-      builder: (context, child) {
-        return Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                theme.bgPrimary,
-                Color.lerp(
-                  theme.bgPrimary,
-                  theme.primary.withValues(alpha: 0.05),
-                  _bgAnimController.value,
-                )!,
-                theme.bgPrimary,
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
+  Widget _buildBg(AppTheme theme) => AnimatedBuilder(
+    animation: _bgAnimController,
+    builder: (context, child) => Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            theme.bgPrimary,
+            Color.lerp(
+              theme.bgPrimary,
+              theme.primary.withValues(alpha: 0.05),
+              _bgAnimController.value,
+            )!,
+            theme.bgPrimary,
+          ],
+        ),
+      ),
+    ),
+  );
 
   Widget _buildSubscriptionCard(BuildContext ctx, AppTheme theme) {
-    final subName = SubscriptionConstants.defaultName;
-    final daysLeft = SubscriptionConstants.defaultDaysLeft;
-    final totalGB = SubscriptionConstants.defaultTotalGB;
-    final usedGB = SubscriptionConstants.defaultUsedGB;
+    const subName = SubscriptionConstants.defaultName;
+    const daysLeft = SubscriptionConstants.defaultDaysLeft;
+    const totalGB = SubscriptionConstants.defaultTotalGB;
+    const usedGB = SubscriptionConstants.defaultUsedGB;
     final progress = (usedGB / totalGB).clamp(0.0, 1.0);
 
     return Container(
@@ -308,131 +302,133 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildUpdateBanner(BuildContext ctx, AppTheme theme) {
-    return StreamBuilder<UpdateDownloadState>(
-      stream: UpdateManager.instance.progressStream,
-      initialData: UpdateManager.instance.state,
-      builder: (context, snapshot) {
-        final state = snapshot.data ?? UpdateManager.instance.state;
-        final hasUpdate = UpdateManager.instance.availableUpdate != null;
-        final isReady = UpdateManager.instance.isUpdateReady;
-        final isDownloading =
-            state.status == 'downloading' || state.status == 'paused';
-        if (!hasUpdate && !isReady && !isDownloading)
-          return const SizedBox.shrink();
+  Widget _buildUpdateBanner(
+    BuildContext ctx,
+    AppTheme theme,
+  ) => StreamBuilder<UpdateDownloadState>(
+    stream: UpdateManager.instance.progressStream,
+    initialData: UpdateManager.instance.state,
+    builder: (context, snapshot) {
+      final state = snapshot.data ?? UpdateManager.instance.state;
+      final hasUpdate = UpdateManager.instance.availableUpdate != null;
+      final isReady = UpdateManager.instance.isUpdateReady;
+      final isDownloading =
+          state.status == 'downloading' || state.status == 'paused';
+      if (!hasUpdate && !isReady && !isDownloading) {
+        return const SizedBox.shrink();
+      }
 
-        String title;
-        String? subtitle;
-        IconData icon;
-        Color accentColor;
-        VoidCallback? onTap;
+      String title;
+      String? subtitle;
+      IconData icon;
+      Color accentColor;
+      VoidCallback? onTap;
 
-        if (isDownloading) {
-          final pct = state.progress > 0
-              ? (state.progress * 100).toStringAsFixed(0)
-              : null;
-          title = pct != null ? 'Скачивание $pct%' : 'Скачивание...';
-          if (state.status == 'paused') {
-            subtitle = 'Ожидание подключения...';
-          } else if (state.totalBytes > 0) {
-            final mb = (state.receivedBytes / 1024 / 1024).toStringAsFixed(1);
-            final totalMb = (state.totalBytes / 1024 / 1024).toStringAsFixed(1);
-            subtitle = '$mb / $totalMb MB';
-          }
-          icon = Icons.downloading_rounded;
-          accentColor = theme.primary;
-          onTap = () => UpdateManager.instance.downloadAndInstall(context);
-        } else if (isReady) {
-          final v = UpdateManager.instance.availableUpdate?.version ?? '';
-          title = 'Обновление готово — v$v';
-          subtitle = 'Нажмите для установки';
-          icon = Icons.system_update_rounded;
-          accentColor = theme.success;
-          onTap = () => UpdateManager.instance.downloadAndInstall(context);
-        } else {
-          final v = UpdateManager.instance.availableUpdate?.version ?? '';
-          title = 'Доступна версия $v';
-          subtitle = 'Нажмите для обновления';
-          icon = Icons.new_releases_outlined;
-          accentColor = theme.primary;
-          onTap = () => UpdateManager.instance.downloadAndInstall(context);
+      if (isDownloading) {
+        final pct = state.progress > 0
+            ? (state.progress * 100).toStringAsFixed(0)
+            : null;
+        title = pct != null ? 'Скачивание $pct%' : 'Скачивание...';
+        if (state.status == 'paused') {
+          subtitle = 'Ожидание подключения...';
+        } else if (state.totalBytes > 0) {
+          final mb = (state.receivedBytes / 1024 / 1024).toStringAsFixed(1);
+          final totalMb = (state.totalBytes / 1024 / 1024).toStringAsFixed(1);
+          subtitle = '$mb / $totalMb MB';
         }
+        icon = Icons.downloading_rounded;
+        accentColor = theme.primary;
+        onTap = () => UpdateManager.instance.downloadAndInstall(context);
+      } else if (isReady) {
+        final v = UpdateManager.instance.availableUpdate?.version ?? '';
+        title = 'Обновление готово — v$v';
+        subtitle = 'Нажмите для установки';
+        icon = Icons.system_update_rounded;
+        accentColor = theme.success;
+        onTap = () => UpdateManager.instance.downloadAndInstall(context);
+      } else {
+        final v = UpdateManager.instance.availableUpdate?.version ?? '';
+        title = 'Доступна версия $v';
+        subtitle = 'Нажмите для обновления';
+        icon = Icons.new_releases_outlined;
+        accentColor = theme.primary;
+        onTap = () => UpdateManager.instance.downloadAndInstall(context);
+      }
 
-        return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(14),
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: accentColor.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: accentColor.withValues(alpha: 0.25)),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: accentColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(icon, color: accentColor, size: 22),
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: accentColor.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: accentColor.withValues(alpha: 0.25)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: accentColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+                  child: Icon(icon, color: accentColor, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: theme.onSurface,
+                        ),
+                      ),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 2),
                         Text(
-                          title,
+                          subtitle,
                           style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: theme.onSurface,
+                            fontSize: 12,
+                            color: theme.onSurfaceVariant,
                           ),
                         ),
-                        if (subtitle != null) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            subtitle,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: theme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                        if (isDownloading && state.progress > 0) ...[
-                          const SizedBox(height: 8),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: LinearProgressIndicator(
-                              value: state.progress,
-                              minHeight: 4,
-                              backgroundColor: theme.surfaceVariant,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                accentColor,
-                              ),
-                            ),
-                          ),
-                        ],
                       ],
-                    ),
+                      if (isDownloading && state.progress > 0) ...[
+                        const SizedBox(height: 8),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: state.progress,
+                            minHeight: 4,
+                            backgroundColor: theme.surfaceVariant,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              accentColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    color: theme.outline,
-                    size: 20,
-                  ),
-                ],
-              ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: theme.outline,
+                  size: 20,
+                ),
+              ],
             ),
           ),
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
 
   Widget _buildPowerSection(BuildContext ctx, AppTheme theme) {
     final isConnected = _state == VpnConnectionState.connected;
@@ -466,7 +462,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               if (server != null) ...[
                 const SizedBox(height: 6),
                 Text(
-                  '${server.flag ?? "🌐"} ${server.name}  ·  ${server.protocol.displayName}',
+                  '${server.flag ?? "🌐"} ${server.name}  ·  '
+                  '${server.protocol.displayName}',
                   style: TextStyle(fontSize: 13, color: theme.onSurfaceVariant),
                 ),
               ],
@@ -484,57 +481,55 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   // ─── Compact Stats: arrows + time only ───
 
-  Widget _buildCompactStats(AppTheme theme) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: theme.surface.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: theme.outlineVariant.withValues(alpha: 0.5)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.arrow_upward_rounded, size: 16, color: theme.primary),
-          const SizedBox(width: 4),
-          Text(
-            _formatSpeedCompact(_stats.uploadSpeed),
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: theme.onSurface,
-            ),
+  Widget _buildCompactStats(AppTheme theme) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+    decoration: BoxDecoration(
+      color: theme.surface.withValues(alpha: 0.6),
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: theme.outlineVariant.withValues(alpha: 0.5)),
+    ),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.arrow_upward_rounded, size: 16, color: theme.primary),
+        const SizedBox(width: 4),
+        Text(
+          _formatSpeedCompact(_stats.uploadSpeed),
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: theme.onSurface,
           ),
-          const SizedBox(width: 12),
-          Icon(
-            Icons.access_time_rounded,
-            size: 14,
-            color: theme.onSurfaceVariant,
+        ),
+        const SizedBox(width: 12),
+        Icon(
+          Icons.access_time_rounded,
+          size: 14,
+          color: theme.onSurfaceVariant,
+        ),
+        const SizedBox(width: 4),
+        Text(
+          _formatDurationCompact(_stats.duration),
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: theme.onSurface,
           ),
-          const SizedBox(width: 4),
-          Text(
-            _formatDurationCompact(_stats.duration),
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: theme.onSurface,
-            ),
+        ),
+        const SizedBox(width: 12),
+        Icon(Icons.arrow_downward_rounded, size: 16, color: theme.primary),
+        const SizedBox(width: 4),
+        Text(
+          _formatSpeedCompact(_stats.downloadSpeed),
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: theme.onSurface,
           ),
-          const SizedBox(width: 12),
-          Icon(Icons.arrow_downward_rounded, size: 16, color: theme.primary),
-          const SizedBox(width: 4),
-          Text(
-            _formatSpeedCompact(_stats.downloadSpeed),
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: theme.onSurface,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
 
   // ─── Servers Section ───
 
@@ -660,29 +655,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     IconData icon,
     String tooltip,
     VoidCallback onTap,
-  ) {
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: theme.surface.withValues(alpha: 0.6),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: theme.outlineVariant.withValues(alpha: 0.5),
-              ),
+  ) => Tooltip(
+    message: tooltip,
+    child: Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: theme.surface.withValues(alpha: 0.6),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: theme.outlineVariant.withValues(alpha: 0.5),
             ),
-            child: Icon(icon, size: 16, color: theme.onSurfaceVariant),
           ),
+          child: Icon(icon, size: 16, color: theme.onSurfaceVariant),
         ),
       ),
-    );
-  }
+    ),
+  );
 
   Future<void> _onPingServers() async {
     if (_isPinging) return;
@@ -696,12 +689,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       showAppNotification(context, 'Нет серверов для пинга');
       return;
     }
-    if (mounted)
+    if (mounted) {
       showAppNotification(
         context,
         'Пинг ${servers.length} серверов...',
         duration: const Duration(seconds: 30),
       );
+    }
     try {
       final futures = servers.map((s) => _pingServer(s));
       final results = await Future.wait(futures);
@@ -719,6 +713,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           duration: const Duration(seconds: 3),
         );
       }
+    // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       if (mounted) {
         showAppNotification(context, 'Ошибка пинга: $e', isError: true);
@@ -735,6 +730,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       await http.get(uri).timeout(const Duration(seconds: 5));
       sw.stop();
       return sw.elapsedMilliseconds;
+    // ignore: avoid_catches_without_on_clauses
     } catch (_) {
       sw.stop();
       return -1;
@@ -746,11 +742,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ? server.rawLink
         : '${server.protocol.displayName.toLowerCase()}://${server.address}:${server.port}';
     Clipboard.setData(ClipboardData(text: link));
-    showAppNotification(
-      context,
-      'Конфиг "${server.name}" скопирован!',
-      duration: const Duration(seconds: 2),
-    );
+    showAppNotification(context, 'Конфиг "${server.name}" скопирован!');
   }
 
   void _onWebExportConfig(VpnServer server) {
@@ -758,19 +750,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ? server.rawLink
         : '${server.protocol.displayName.toLowerCase()}://${server.address}:${server.port}';
     Clipboard.setData(ClipboardData(text: link));
-    showAppNotification(
-      context,
-      'Конфиг "${server.name}" скопирован!',
-      duration: const Duration(seconds: 2),
-    );
+    showAppNotification(context, 'Конфиг "${server.name}" скопирован!');
   }
 
   void _onAutoReload() {
-    showAppNotification(
-      context,
-      'Авто-перезагрузка',
-      duration: const Duration(seconds: 2),
-    );
+    showAppNotification(context, 'Авто-перезагрузка');
   }
 
   Widget _serverTile(BuildContext c, AppTheme theme, VpnServer server) {
@@ -997,28 +981,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     showAppNotification(
       context,
       'Ссылка "${server.name}" скопирована для шаринга',
-      duration: const Duration(seconds: 2),
     );
   }
 
-  Widget _badge(AppTheme theme, String text, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-          color: color,
-        ),
-      ),
-    );
-  }
+  Widget _badge(AppTheme theme, String text, Color color) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(6),
+      border: Border.all(color: color.withValues(alpha: 0.2)),
+    ),
+    child: Text(
+      text,
+      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: color),
+    ),
+  );
 
   Color _pingColor(int ping) {
     if (ping < 100) return const Color(0xFFA8E63D);
@@ -1030,16 +1007,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     setState(() => _selectedServer = server);
     // Apply per-app proxy settings before connecting
     await _applyPerAppProxy();
-    widget.vpnService.connect(server).then((success) {
-      if (!success && mounted) {
-        showAppNotification(
-          context,
-          'Не удалось подключиться. Проверьте настройки.',
-          isError: true,
-          duration: const Duration(seconds: 3),
-        );
-      }
-    });
+    final success = await widget.vpnService.connect(server);
+    if (!success && mounted) {
+      showAppNotification(
+        context,
+        'Не удалось подключиться. Проверьте настройки.',
+        isError: true,
+        duration: const Duration(seconds: 3),
+      );
+    }
   }
 
   Future<void> _applyPerAppProxy() async {
@@ -1054,6 +1030,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         proxyModeBypass ? 'bypass' : 'tunnel',
       );
       await widget.vpnService.setPerAppProxyList(excludedApps);
+    // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       debugPrint('Failed to apply per-app proxy: $e');
     }
@@ -1076,21 +1053,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String _formatSpeedCompact(int bytesPerSec) {
     if (bytesPerSec <= 0) return '? B/s';
     if (bytesPerSec < 1024) return '$bytesPerSec B/s';
-    if (bytesPerSec < 1024 * 1024)
+    if (bytesPerSec < 1024 * 1024) {
       return '${(bytesPerSec / 1024).toStringAsFixed(1)} KB/s';
+    }
     return '${(bytesPerSec / (1024 * 1024)).toStringAsFixed(1)} MB/s';
   }
 
   String _formatDurationCompact(Duration d) {
     final totalSeconds = d.inSeconds;
-    if (totalSeconds < 60)
+    if (totalSeconds < 60) {
       return '00:${totalSeconds.toString().padLeft(2, '0')}';
+    }
     final hours = d.inHours;
     final minutes = d.inMinutes % 60;
     final seconds = totalSeconds % 60;
-    if (hours == 0)
-      return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-    return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    if (hours == 0) {
+      return '${minutes.toString().padLeft(2, '0')}:'
+          '${seconds.toString().padLeft(2, '0')}';
+    }
+    return '${hours.toString().padLeft(2, '0')}:'
+        '${minutes.toString().padLeft(2, '0')}:'
+        '${seconds.toString().padLeft(2, '0')}';
   }
 
   void _onToggle() {
@@ -1136,89 +1119,92 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Future<void> _launchBot() async {
     final uri = Uri.parse('https://t.me/max_speedbot');
-    if (await canLaunchUrl(uri))
+    if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
-  Widget _buildWebDownloadSection(BuildContext ctx, AppTheme theme) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: theme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.outlineVariant),
-      ),
-      child: Column(
-        children: [
-          Icon(Icons.cloud_download_outlined, size: 48, color: theme.primary),
-          const SizedBox(height: 12),
-          Text(
-            'Скачайте нативный клиент',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: theme.onSurface,
+  Widget _buildWebDownloadSection(
+    BuildContext ctx,
+    AppTheme theme,
+  ) => Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: theme.surface,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: theme.outlineVariant),
+    ),
+    child: Column(
+      children: [
+        Icon(Icons.cloud_download_outlined, size: 48, color: theme.primary),
+        const SizedBox(height: 12),
+        Text(
+          'Скачайте нативный клиент',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: theme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'VPN в браузере невозможен. Установите приложение для полной защиты.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 13, color: theme.onSurfaceVariant),
+        ),
+        const SizedBox(height: 16),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          alignment: WrapAlignment.center,
+          children: [
+            _downloadBtn(
+              ctx,
+              theme,
+              'Android',
+              Icons.android,
+              'https://github.com/justcheburek0-design/maxspeed_vpn/releases',
             ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'VPN в браузере невозможен. Установите приложение для полной защиты.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, color: theme.onSurfaceVariant),
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            alignment: WrapAlignment.center,
-            children: [
-              _downloadBtn(
-                ctx,
-                theme,
-                'Android',
-                Icons.android,
-                'https://github.com/justcheburek0-design/maxspeed_vpn/releases',
-              ),
-              _downloadBtn(
-                ctx,
-                theme,
-                'Windows',
-                Icons.desktop_windows,
-                'https://github.com/justcheburek0-design/maxspeed_vpn/releases',
-              ),
-              _downloadBtn(
-                ctx,
-                theme,
-                'macOS',
-                Icons.laptop_mac,
-                'https://github.com/justcheburek0-design/maxspeed_vpn/releases',
-              ),
-              _downloadBtn(
-                ctx,
-                theme,
-                'Linux',
-                Icons.computer,
-                'https://github.com/justcheburek0-design/maxspeed_vpn/releases',
-              ),
-              _downloadBtn(
-                ctx,
-                theme,
-                'iOS',
-                Icons.phone_iphone,
-                'https://apps.apple.com',
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Или используйте конфиги из раздела серверов с любым совместимым клиентом',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 11, color: theme.outline),
-          ),
-        ],
-      ),
-    );
-  }
+            _downloadBtn(
+              ctx,
+              theme,
+              'Windows',
+              Icons.desktop_windows,
+              'https://github.com/justcheburek0-design/maxspeed_vpn/releases',
+            ),
+            _downloadBtn(
+              ctx,
+              theme,
+              'macOS',
+              Icons.laptop_mac,
+              'https://github.com/justcheburek0-design/maxspeed_vpn/releases',
+            ),
+            _downloadBtn(
+              ctx,
+              theme,
+              'Linux',
+              Icons.computer,
+              'https://github.com/justcheburek0-design/maxspeed_vpn/releases',
+            ),
+            _downloadBtn(
+              ctx,
+              theme,
+              'iOS',
+              Icons.phone_iphone,
+              'https://apps.apple.com',
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Или используйте конфиги из раздела серверов '
+          'с любым совместимым клиентом',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 11, color: theme.outline),
+        ),
+      ],
+    ),
+  );
 
   Widget _downloadBtn(
     BuildContext ctx,
@@ -1226,20 +1212,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     String label,
     IconData icon,
     String url,
-  ) {
-    return OutlinedButton.icon(
-      onPressed: () async {
-        final uri = Uri.parse(url);
-        if (await canLaunchUrl(uri))
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-      },
-      icon: Icon(icon, size: 18),
-      label: Text(label),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: theme.primary,
-        side: BorderSide(color: theme.outlineVariant),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      ),
-    );
-  }
+  ) => OutlinedButton.icon(
+    onPressed: () async {
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    },
+    icon: Icon(icon, size: 18),
+    label: Text(label),
+    style: OutlinedButton.styleFrom(
+      foregroundColor: theme.primary,
+      side: BorderSide(color: theme.outlineVariant),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+    ),
+  );
 }
