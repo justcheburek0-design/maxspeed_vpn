@@ -1005,6 +1005,7 @@ class SettingsScreenState extends State<SettingsScreen>
             final pct = state.progress > 0
                 ? (state.progress * 100).toStringAsFixed(0)
                 : null;
+            final isPaused = UpdateManager.instance.isPaused;
             trailingWidget = Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -1021,6 +1022,21 @@ class SettingsScreenState extends State<SettingsScreen>
                 Text(
                   pct != null ? '$pct%' : 'Скачивание...',
                   style: TextStyle(color: theme.primary, fontSize: 13),
+                ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: () {
+                    if (isPaused) {
+                      UpdateManager.instance.resumeDownload();
+                    } else {
+                      UpdateManager.instance.pauseDownload();
+                    }
+                  },
+                  child: Icon(
+                    isPaused ? Icons.play_arrow : Icons.pause,
+                    size: 20,
+                    color: theme.primary,
+                  ),
                 ),
               ],
             );

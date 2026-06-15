@@ -124,12 +124,13 @@ class UpdateManager {
     }
 
     // Then check for new updates from GitHub
-    await checkAndDownloadInBackground();
+    // Only check — do NOT auto-download. User must confirm first.
+    await _checkForUpdateOnly();
   }
 
-  /// Check for update from GitHub. If found, starts background download.
+  /// Check for update from GitHub without auto-downloading.
   /// Returns UpdateInfo if a new version is available, null otherwise.
-  Future<UpdateInfo?> checkAndDownloadInBackground() async {
+  Future<UpdateInfo?> _checkForUpdateOnly() async {
     try {
       final packageInfo = await PackageInfo.fromPlatform();
       final currentVersion = packageInfo.version;
@@ -171,8 +172,6 @@ class UpdateManager {
           releaseNotes: body,
           publishedAt: publishedAt,
         );
-        // Start background download
-        unawaited(_startBackgroundDownload(_availableUpdate!));
         return _availableUpdate;
       }
       return null;
@@ -183,12 +182,38 @@ class UpdateManager {
     }
   }
 
+  bool _isPaused = false;
+  bool get isPaused => _isPaused;
+
+  /// Pause the current download. The HTTP stream will be cancelled on next
+  /// chunk, and the partial file is kept for resume.
+  void pauseDownload() {
+    _isPaused = true;
+    _state = const UpdateDownloadState(
+      progress: -1,
+      receivedBytes: 0,
+      totalBytes: 0,
+      status: 'paused',
+    );
+    _progressController.add(_state);
+  }
+
+  /// Resume a previously paused download.
+  Future<void> resumeDownload() async {
+    if (_availableUpdate == null) return;
+    _isPaused = false;
+    await _startBackgroundDownload(_availableUpdate!);
+  }
+
+  /// Public: check for update without auto-downloading.
+  Future<UpdateInfo?> checkForUpdate() => _checkForUpdateOnly();
+
   /// Manually trigger download (e.g. user tapped "Update" in settings).
   /// If already downloaded, just installs. Otherwise starts/resumes download.
   Future<void> downloadAndInstall(BuildContext context) async {
     if (_availableUpdate == null) {
       // Check first
-      final info = await checkAndDownloadInBackground();
+      final info = await _checkForUpdateOnly();
       if (info == null || !context.mounted) {
         if (context.mounted) {
           showAppNotification(context, 'Обновление не найдено');
@@ -314,6 +339,12 @@ class UpdateManager {
 
       int received = startByte;
       await for (final chunk in response.stream) {
+        if (_isPaused) {
+          await sink.close();
+          client.close();
+          _isDownloading = false;
+          return;
+        }
         sink.add(chunk);
         received += chunk.length;
         if (total > 0) {
@@ -723,7 +754,7 @@ class _UpdateDownloadDialogState extends State<_UpdateDownloadDialog> {
 
 class UpdateChecker {
   static Future<UpdateInfo?> checkForUpdate() async =>
-      UpdateManager.instance.checkAndDownloadInBackground();
+      UpdateManager.instance.checkForUpdate();
 
   static Future<void> downloadAndInstall(
     BuildContext context,
