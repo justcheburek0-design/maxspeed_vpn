@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart' show getApplicationCacheDirectory;
 import '../core/constants/app_constants.dart';
+import '../core/utils/notifications.dart';
 import '../core/theme/app_themes.dart';
 import 'update_info.dart';
 

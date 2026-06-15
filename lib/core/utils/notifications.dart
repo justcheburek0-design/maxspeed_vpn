@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../core/theme/app_themes.dart';
 
 /// Показывает уведомление сверху экрана, тёмное, не на всю ширину.
 void showAppNotification(BuildContext context, String message,
@@ -7,28 +6,6 @@ void showAppNotification(BuildContext context, String message,
   final overlay = Overlay.of(context);
   late OverlayEntry entry;
 
-  entry = OverlayEntry(
-    builder: (context) => Positioned(
-      top: MediaQuery.of(context).padding.top + 16,
-      left: 16,
-      right: 16,
-      child: Material(
-        color: Colors.transparent,
-        child: TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0.0, end: 1.0),
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOutCubic,
-          builder: (context, value, child) {
-            return Transform.translate(
-              offset: Offset(0, -20 * (1 - value)),
-              child: Opacity(opacity: value, child: child),
-            );
-          },
-          child: child,
-        ),
-      ),
-    ),
-  );
   final content = Container(
     width: double.infinity,
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -80,7 +57,6 @@ void showAppNotification(BuildContext context, String message,
     ),
   );
 
-  // Re-create with the content
   entry = OverlayEntry(
     builder: (context) => Positioned(
       top: MediaQuery.of(context).padding.top + 16,

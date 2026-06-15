@@ -495,7 +495,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         showAppNotification(context, 'Нет серверов для пинга');
       return;
     }
-    if (mounted) showAppNotification(context, 'Пинг ${servers.length} серверов...', duration: const Duration(seconds: 30);
+    if (mounted) showAppNotification(context, 'Пинг ${servers.length} серверов...', duration: const Duration(seconds: 30));
     try {
       final futures = servers.map((s) => _pingServer(s));
       final results = await Future.wait(futures);
