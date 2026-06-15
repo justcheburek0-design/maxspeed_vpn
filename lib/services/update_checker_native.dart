@@ -172,13 +172,21 @@ class UpdateManager {
     if (_availableUpdate == null) {
       // Check first
       final info = await checkAndDownloadInBackground();
-      if (info == null || !context.mounted) return;
+      if (info == null || !context.mounted) {
+        if (context.mounted) {
+          showAppNotification(context, 'Обновление не найдено');
+        }
+        return;
+      }
     }
 
     // Check if already downloaded
     final apk = await getDownloadedApk(_availableUpdate!.version);
     if (apk != null) {
-      _installUpdate(context, apk);
+      if (context.mounted) {
+        showAppNotification(context, 'Установка обновления v${_availableUpdate!.version}...');
+      }
+      await _installUpdate(context, apk);
       return;
     }
 
@@ -347,6 +355,8 @@ class UpdateManager {
 
       debugPrint('UpdateManager: installing Windows update from ${zipFile.path}');
       debugPrint('UpdateManager: targetDir=${targetDir.path}');
+      debugPrint('UpdateManager: currentExe=$currentExe');
+      debugPrint('UpdateManager: zip exists=${zipFile.existsSync()}, size=${zipFile.lengthSync()}');
 
       // Clean temp if exists
       if (tempDir.existsSync()) await tempDir.delete(recursive: true);
@@ -358,6 +368,7 @@ class UpdateManager {
         ['-Command', 'Expand-Archive -Path "${zipFile.path}" -DestinationPath "${tempDir.path}" -Force'],
         runInShell: true,
       );
+      debugPrint('UpdateManager: extract exit=${extractResult.exitCode}');
       if (extractResult.exitCode != 0) {
         debugPrint('UpdateManager: extract failed: ${extractResult.stderr}');
         return;
@@ -365,9 +376,11 @@ class UpdateManager {
 
       // Find the new exe inside extracted folder
       final extractedFiles = tempDir.listSync(recursive: true);
+      debugPrint('UpdateManager: extracted ${extractedFiles.length} files');
       final newExe = extractedFiles
           .whereType<File>()
           .firstWhere((f) => f.path.endsWith('.exe'), orElse: () => throw Exception('No .exe in zip'));
+      debugPrint('UpdateManager: newExe=${newExe.path}');
 
       // Create a batch script that:
       // 1. Waits for current process to exit
