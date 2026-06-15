@@ -759,9 +759,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _serverTile(BuildContext c, AppTheme theme, VpnServer server) {
     final isActive = _selectedServer?.id == server.id;
-    final isConnected =
-        widget.vpnService.activeServer?.id == server.id &&
-        _state == VpnConnectionState.connected;
     final pingResult = _pingResults[server.id];
     final displayPing = pingResult ?? server.ping;
     final pingColor = _pingColor(displayPing ?? 999);
@@ -1114,13 +1111,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           duration: const Duration(seconds: 3),
         );
       }
-    }
-  }
-
-  Future<void> _launchBot() async {
-    final uri = Uri.parse('https://t.me/max_speedbot');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 
