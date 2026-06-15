@@ -39,13 +39,13 @@ void showAppNotification(BuildContext context, String message,
       borderRadius: BorderRadius.circular(12),
       border: Border.all(
         color: isError
-            ? const Color(0xFFFF7043).withValues(alpha: 0.3)
-            : const Color(0xFF2A4A00).withValues(alpha: 0.5),
+            ? const Color(0xFFFF7043).withOpacity(0.3)
+            : const Color(0xFF2A4A00).withOpacity(0.5),
         width: 1,
       ),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.4),
+          color: Colors.black.withOpacity(0.4),
           blurRadius: 12,
           offset: const Offset(0, 4),
         ),
