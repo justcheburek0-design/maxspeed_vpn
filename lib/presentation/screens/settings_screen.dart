@@ -11,6 +11,7 @@ import '../../data/models/vpn_models.dart';
 import '../../services/vpn_service_interface.dart';
 import '../../services/update_manager_export.dart';
 import '../../vpn/subscription_parser.dart';
+import '../../core/utils/notifications.dart';
 
 class SettingsScreen extends StatefulWidget {
   final VpnService vpnService;
@@ -652,9 +653,7 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
     final logs = widget.vpnService.logs;
     if (logs.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Логи пусты — нечего экспортировать')),
-        );
+        showAppNotification(context, 'Логи пусты — нечего экспортировать');
       }
       return;
     }
@@ -678,15 +677,11 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
       await Clipboard.setData(ClipboardData(text: sb.toString()));
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Скопировано в буфер (${logs.length} записей)')),
-        );
+        showAppNotification(context, 'Скопировано в буфер (${logs.length} записей)');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка экспорта: $e')),
-        );
+        showAppNotification(context, 'Ошибка экспорта: $e', isError: true);
       }
     }
   }
@@ -920,7 +915,7 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
                   if (response.statusCode == 200) {
                     content = response.body;
                   } else {
-                    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка загрузки: HTTP ${response.statusCode}')));
+                    showAppNotification(context, 'Ошибка загрузки: HTTP ${response.statusCode}', isError: true);
                     return;
                   }
                 } else {
@@ -928,16 +923,16 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
                 }
                 final servers = SubscriptionParser.parse(content);
                 if (servers.isEmpty) {
-                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Не удалось распарсить подписку. Проверьте формат.')));
+                  showAppNotification(context, 'Не удалось распарсить подписку. Проверьте формат.', isError: true);
                   return;
                 }
                 await widget.vpnService.updateServers(servers);
                 final prefs = await SharedPreferences.getInstance();
                 await prefs.setString('subscription_url', input);
                 await prefs.setString('subscription_name', SubscriptionConstants.defaultName);
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Подписка добавлена: ${servers.length} серверов')));
+                showAppNotification(context, 'Подписка добавлена: ${servers.length} серверов');
               } catch (e) {
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
+                showAppNotification(context, 'Ошибка: $e', isError: true);
               }
             },
             style: FilledButton.styleFrom(backgroundColor: theme.primary, foregroundColor: theme.onPrimary),

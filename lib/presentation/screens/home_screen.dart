@@ -11,6 +11,7 @@ import '../../data/models/vpn_models.dart';
 import '../../services/vpn_service_interface.dart';
 import '../../services/update_manager_export.dart';
 import '../widgets/power_button.dart';
+import '../../core/utils/notifications.dart';
 
 class HomeScreen extends StatefulWidget {
   final VpnService vpnService;
@@ -491,23 +492,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final servers = widget.vpnService.servers;
     if (servers.isEmpty) {
       setState(() => _isPinging = false);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Нет серверов для пинга')),
-      );
+        showAppNotification(context, 'Нет серверов для пинга');
       return;
     }
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
-            const SizedBox(width: 12),
-            Text('Пинг ${servers.length} серверов...'),
-          ],
-        ),
-        duration: const Duration(seconds: 30),
-      ),
-    );
+    if (mounted) showAppNotification(context, 'Пинг ${servers.length} серверов...', duration: const Duration(seconds: 30);
     try {
       final futures = servers.map((s) => _pingServer(s));
       final results = await Future.wait(futures);
@@ -517,21 +505,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       if (mounted) {
         final reachable = _pingResults.values.where((v) => v > 0).toList();
         final avg = reachable.isEmpty ? 0 : (reachable.fold(0, (a, b) => a + b) / reachable.length).round();
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Пинг готов! Средний: ${avg}ms (${reachable.length}/${servers.length} доступно)'),
-            duration: const Duration(seconds: 3),
-            backgroundColor: reachable.isNotEmpty ? Colors.green.shade700 : Colors.red.shade700,
-          ),
-        );
+        showAppNotification(context, 'Пинг готов! Средний: ${avg}ms (${reachable.length}/${servers.length} доступно)', duration: const Duration(seconds: 3));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка пинга: $e')),
-        );
+        showAppNotification(context, 'Ошибка пинга: $e', isError: true);
       }
     }
     if (mounted) setState(() => _isPinging = false);
@@ -556,13 +534,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ? server.rawLink
         : '${server.protocol.displayName.toLowerCase()}://${server.address}:${server.port}';
     Clipboard.setData(ClipboardData(text: link));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Конфиг "${server.name}" скопирован!'),
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    showAppNotification(context, 'Конфиг "${server.name}" скопирован!', duration: const Duration(seconds: 2));
   }
 
   void _onWebExportConfig(VpnServer server) {
@@ -570,19 +542,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ? server.rawLink
         : '${server.protocol.displayName.toLowerCase()}://${server.address}:${server.port}';
     Clipboard.setData(ClipboardData(text: link));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Конфиг "${server.name}" скопирован!'),
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    showAppNotification(context, 'Конфиг "${server.name}" скопирован!', duration: const Duration(seconds: 2));
   }
 
   void _onAutoReload() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Авто-перезагрузка'), duration: Duration(seconds: 2)),
-    );
+    showAppNotification(context, 'Авто-перезагрузка', duration: const Duration(seconds: 2));
   }
 
   Widget _serverTile(BuildContext c, AppTheme theme, VpnServer server) {
@@ -729,13 +693,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         : '${server.protocol.displayName.toLowerCase()}://${server.address}:${server.port}';
     // On native, use share_plus alternative; for now just copy
     Clipboard.setData(ClipboardData(text: link));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Ссылка "${server.name}" скопирована для шаринга'),
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    showAppNotification(context, 'Ссылка "${server.name}" скопирована для шаринга', duration: const Duration(seconds: 2));
   }
 
   Widget _badge(AppTheme theme, String text, Color color) {
@@ -758,9 +716,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     await _applyPerAppProxy();
     widget.vpnService.connect(server).then((success) {
       if (!success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Не удалось подключиться. Проверьте настройки.'), duration: Duration(seconds: 3)),
-        );
+        showAppNotification(context, 'Не удалось подключиться. Проверьте настройки.', isError: true, duration: const Duration(seconds: 3));
       }
     });
   }
@@ -836,7 +792,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       if (servers.isNotEmpty) {
         _connect(servers.first);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Нет серверов — добавьте подписку в настройках'), duration: Duration(seconds: 3)));
+        showAppNotification(context, 'Нет серверов — добавьте подписку в настройках', duration: const Duration(seconds: 3));
       }
     }
   }

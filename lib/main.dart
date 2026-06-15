@@ -11,6 +11,7 @@ import 'presentation/screens/settings_screen.dart';
 import 'services/vpn_service_factory.dart';
 import 'services/vpn_service_interface.dart';
 import 'services/update_manager_export.dart';
+import '../core/utils/notifications.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -110,9 +111,7 @@ class _MainScreenState extends State<MainScreen> {
       final url = link.substring(8);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Импорт подписки: $url')),
-          );
+          showAppNotification(context, 'Импорт подписки: $url');
         }
       });
     }
