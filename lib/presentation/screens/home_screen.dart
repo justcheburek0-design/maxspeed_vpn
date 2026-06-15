@@ -713,7 +713,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           duration: const Duration(seconds: 3),
         );
       }
-    // ignore: avoid_catches_without_on_clauses
+      // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       if (mounted) {
         showAppNotification(context, 'Ошибка пинга: $e', isError: true);
@@ -730,7 +730,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       await http.get(uri).timeout(const Duration(seconds: 5));
       sw.stop();
       return sw.elapsedMilliseconds;
-    // ignore: avoid_catches_without_on_clauses
+      // ignore: avoid_catches_without_on_clauses
     } catch (_) {
       sw.stop();
       return -1;
@@ -1030,7 +1030,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         proxyModeBypass ? 'bypass' : 'tunnel',
       );
       await widget.vpnService.setPerAppProxyList(excludedApps);
-    // ignore: avoid_catches_without_on_clauses
+      // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       debugPrint('Failed to apply per-app proxy: $e');
     }

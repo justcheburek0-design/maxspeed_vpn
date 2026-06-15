@@ -57,7 +57,7 @@ class WebVpnService implements VpnService {
         'Config for ${server.name} copied to clipboard',
       );
       return true;
-    // ignore: avoid_catches_without_on_clauses
+      // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       _addLog(VpnLogLevel.error, 'Clipboard error: $e');
       return false;

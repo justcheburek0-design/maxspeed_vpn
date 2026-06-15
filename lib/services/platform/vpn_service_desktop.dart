@@ -93,7 +93,7 @@ class DesktopVpnService implements VpnService {
           ? await Process.run('where', [cmd], runInShell: true)
           : await Process.run('which', [cmd], runInShell: true);
       return r.exitCode == 0;
-    // ignore: avoid_catches_without_on_clauses
+      // ignore: avoid_catches_without_on_clauses
     } catch (_) {
       return false;
     }
@@ -216,7 +216,7 @@ class DesktopVpnService implements VpnService {
       _setState(VpnConnectionState.error);
       _addLog(VpnLogLevel.error, 'sing-box failed to start');
       return false;
-    // ignore: avoid_catches_without_on_clauses
+      // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       _addLog(VpnLogLevel.error, 'Connect error: $e');
       _setState(VpnConnectionState.error);
@@ -232,7 +232,7 @@ class DesktopVpnService implements VpnService {
             .get(Uri.parse('http://127.0.0.1:$_apiPort/'))
             .timeout(const Duration(seconds: 1));
         if (r.statusCode < 500) return true;
-      // ignore: avoid_catches_without_on_clauses
+        // ignore: avoid_catches_without_on_clauses
       } catch (_) {}
       await Future.delayed(const Duration(milliseconds: 300));
     }
@@ -253,13 +253,13 @@ class DesktopVpnService implements VpnService {
       if (_configPath != null) {
         try {
           await File(_configPath!).delete();
-        // ignore: avoid_catches_without_on_clauses
+          // ignore: avoid_catches_without_on_clauses
         } catch (_) {}
         _configPath = null;
       }
       _addLog(VpnLogLevel.info, 'VPN disconnected');
       return true;
-    // ignore: avoid_catches_without_on_clauses
+      // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       _addLog(VpnLogLevel.error, 'Disconnect error: $e');
       return false;
@@ -273,7 +273,7 @@ class DesktopVpnService implements VpnService {
       Future.delayed(const Duration(seconds: 3), () {
         try {
           _process?.kill(ProcessSignal.sigkill);
-        // ignore: avoid_catches_without_on_clauses
+          // ignore: avoid_catches_without_on_clauses
         } catch (_) {}
       });
       _process = null;
@@ -288,7 +288,7 @@ class DesktopVpnService implements VpnService {
       } else {
         await Process.run('pkill', ['-f', 'sing-box'], runInShell: true);
       }
-    // ignore: avoid_catches_without_on_clauses
+      // ignore: avoid_catches_without_on_clauses
     } catch (_) {}
   }
 
@@ -327,7 +327,7 @@ class DesktopVpnService implements VpnService {
         );
         _statsController.add(_stats);
       }
-    // ignore: avoid_catches_without_on_clauses
+      // ignore: avoid_catches_without_on_clauses
     } catch (_) {
       // API may not respond yet or connection issue — use duration-only update
       if (_connectTime != null) {
@@ -360,7 +360,7 @@ class DesktopVpnService implements VpnService {
             .get(Uri.parse('http://127.0.0.1:$_apiPort/'))
             .timeout(const Duration(seconds: 2));
         return 'running (PID: ${_process!.pid}, API: ${r.statusCode})';
-      // ignore: avoid_catches_without_on_clauses
+        // ignore: avoid_catches_without_on_clauses
       } catch (_) {
         return 'running (PID: ${_process!.pid}, API unreachable)';
       }
@@ -419,7 +419,7 @@ class DesktopVpnService implements VpnService {
         'github.com',
       ).timeout(const Duration(seconds: 5));
       return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
-    // ignore: avoid_catches_without_on_clauses
+      // ignore: avoid_catches_without_on_clauses
     } catch (_) {
       return false;
     }

@@ -107,7 +107,7 @@ class AndroidVpnService implements VpnService {
         }
         _serversController.add(List.unmodifiable(_servers));
       }
-    // ignore: avoid_catches_without_on_clauses
+      // ignore: avoid_catches_without_on_clauses
     } catch (_) {}
   }
 
@@ -116,7 +116,7 @@ class AndroidVpnService implements VpnService {
       final prefs = await SharedPreferences.getInstance();
       final list = _servers.map((s) => _serverToJson(s)).toList();
       await prefs.setString('servers', jsonEncode(list));
-    // ignore: avoid_catches_without_on_clauses
+      // ignore: avoid_catches_without_on_clauses
     } catch (_) {}
   }
 
@@ -175,7 +175,7 @@ class AndroidVpnService implements VpnService {
         country: m['country'],
         flag: m['flag'],
       );
-    // ignore: avoid_catches_without_on_clauses
+      // ignore: avoid_catches_without_on_clauses
     } catch (_) {
       return null;
     }
@@ -210,7 +210,7 @@ class AndroidVpnService implements VpnService {
       await _saveServers();
       _serversController.add(List.unmodifiable(_servers));
       _addLog(VpnLogLevel.info, 'Загружено ${parsed.length} серверов');
-    // ignore: avoid_catches_without_on_clauses
+      // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       _addLog(VpnLogLevel.error, 'Ошибка загрузки подписки: $e');
     }
@@ -291,7 +291,7 @@ class AndroidVpnService implements VpnService {
       try {
         await _singbox.saveConfig(config);
         _addLog(VpnLogLevel.info, 'saveConfig OK');
-      // ignore: avoid_catches_without_on_clauses
+        // ignore: avoid_catches_without_on_clauses
       } catch (e) {
         _addLog(VpnLogLevel.error, 'saveConfig FAILED: $e');
         _state = VpnConnectionState.error;
@@ -310,7 +310,7 @@ class AndroidVpnService implements VpnService {
           },
         );
         _addLog(VpnLogLevel.info, 'startVPN вернул: $started');
-      // ignore: avoid_catches_without_on_clauses
+        // ignore: avoid_catches_without_on_clauses
       } catch (e) {
         _addLog(VpnLogLevel.error, 'startVPN EXCEPTION: $e');
         started = false;
@@ -359,7 +359,7 @@ class AndroidVpnService implements VpnService {
             'Получено ${buffered.length} буферизованных логов sing-box',
           );
         }
-      // ignore: avoid_catches_without_on_clauses
+        // ignore: avoid_catches_without_on_clauses
       } catch (_) {}
 
       try {
@@ -400,7 +400,7 @@ class AndroidVpnService implements VpnService {
       }
 
       return true;
-    // ignore: avoid_catches_without_on_clauses
+      // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       _state = VpnConnectionState.error;
       _activeServer = null;
@@ -416,7 +416,7 @@ class AndroidVpnService implements VpnService {
       _state = VpnConnectionState.disconnecting;
       _stateController.add(_state);
       return await _singbox.stopVPN();
-    // ignore: avoid_catches_without_on_clauses
+      // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       return false;
     }

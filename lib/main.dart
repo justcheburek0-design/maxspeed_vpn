@@ -101,7 +101,7 @@ class _MainScreenState extends State<MainScreen> {
       if (mounted) {
         setState(() => _appVersion = '${info.version}+${info.buildNumber}');
       }
-    // ignore: avoid_catches_without_on_clauses
+      // ignore: avoid_catches_without_on_clauses
     } catch (_) {}
   }
 

@@ -75,7 +75,7 @@ class UpdateManager {
           : '.apk';
       final file = File('${cacheDir.path}/maxspeed_vpn_v$version$ext');
       if (file.existsSync() && file.lengthSync() > 0) return file;
-    // ignore: avoid_catches_without_on_clauses
+      // ignore: avoid_catches_without_on_clauses
     } catch (_) {}
     return null;
   }
@@ -118,7 +118,7 @@ class UpdateManager {
           }
         }
       }
-    // ignore: avoid_catches_without_on_clauses
+      // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       debugPrint('UpdateManager: error checking downloaded updates: $e');
     }
@@ -176,7 +176,7 @@ class UpdateManager {
         return _availableUpdate;
       }
       return null;
-    // ignore: avoid_catches_without_on_clauses
+      // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       debugPrint('UpdateManager: check failed: $e');
       return null;
@@ -337,7 +337,7 @@ class UpdateManager {
       );
       _isUpdateReady = true;
       _progressController.add(_state);
-    // ignore: avoid_catches_without_on_clauses
+      // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       debugPrint('UpdateManager: download error (attempt $attempt): $e');
       if (attempt < maxRetries) {
@@ -416,7 +416,7 @@ class UpdateManager {
       final extractResult = await Process.run('powershell', [
         '-Command',
         'Expand-Archive -Path "${zipFile.path}" '
-        '-DestinationPath "${tempDir.path}" -Force',
+            '-DestinationPath "${tempDir.path}" -Force',
       ], runInShell: true);
       debugPrint('UpdateManager: extract exit=${extractResult.exitCode}');
       if (extractResult.exitCode != 0) {
@@ -460,7 +460,7 @@ del "%~f0"
       debugPrint('UpdateManager: update script launched, exiting app');
       // Exit the app so the batch script can replace files
       exit(0);
-    // ignore: avoid_catches_without_on_clauses
+      // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       debugPrint('UpdateManager: Windows install error: $e');
     }
@@ -509,7 +509,7 @@ del "%~f0"
       final currentExe = Platform.resolvedExecutable;
       await Process.start(currentExe, [], mode: ProcessStartMode.detached);
       exit(0);
-    // ignore: avoid_catches_without_on_clauses
+      // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       debugPrint('UpdateManager: macOS install error: $e');
     }
@@ -523,7 +523,7 @@ del "%~f0"
       await Process.run('chmod', ['+x', currentExe]);
       await Process.start(currentExe, [], mode: ProcessStartMode.detached);
       exit(0);
-    // ignore: avoid_catches_without_on_clauses
+      // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       debugPrint('UpdateManager: Linux install error: $e');
     }
@@ -537,12 +537,12 @@ del "%~f0"
         'path': file.path,
       });
       if (result != true) throw Exception('installApk returned false');
-    // ignore: avoid_catches_without_on_clauses
+      // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       debugPrint('installApk failed: $e');
       try {
         await channel.invokeMethod('openFile', {'path': file.path});
-      // ignore: avoid_catches_without_on_clauses
+        // ignore: avoid_catches_without_on_clauses
       } catch (_) {}
     }
   }

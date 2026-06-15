@@ -104,7 +104,7 @@ class IosVpnService implements VpnService {
       _addLog(VpnLogLevel.error, 'Platform error: ${e.message}');
       _setState(VpnConnectionState.error);
       return false;
-    // ignore: avoid_catches_without_on_clauses
+      // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       _addLog(VpnLogLevel.error, 'Connect error: $e');
       _setState(VpnConnectionState.error);
@@ -121,7 +121,7 @@ class IosVpnService implements VpnService {
       _activeServer = null;
       _stopStatsTimer();
       return true;
-    // ignore: avoid_catches_without_on_clauses
+      // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       _addLog(VpnLogLevel.error, 'Disconnect error: $e');
       return false;
@@ -133,7 +133,7 @@ class IosVpnService implements VpnService {
     try {
       final s = await _channel.invokeMethod<String>('getStatus');
       return s ?? 'unknown';
-    // ignore: avoid_catches_without_on_clauses
+      // ignore: avoid_catches_without_on_clauses
     } catch (_) {
       return 'error';
     }

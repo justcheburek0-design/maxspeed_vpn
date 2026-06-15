@@ -103,7 +103,7 @@ class SettingsScreenState extends State<SettingsScreen>
     // Apply to VPN service
     try {
       await widget.vpnService.setPerAppProxyList(_excludedApps.toList());
-    // ignore: avoid_catches_without_on_clauses
+      // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       debugPrint('Failed to apply per-app proxy: $e');
     }
@@ -124,7 +124,7 @@ class SettingsScreenState extends State<SettingsScreen>
       }
       apps.sort((a, b) => a.appName.compareTo(b.appName));
       setState(() => _apps = apps);
-    // ignore: avoid_catches_without_on_clauses
+      // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       debugPrint('Failed to load apps: $e');
     }
@@ -865,7 +865,7 @@ class SettingsScreenState extends State<SettingsScreen>
         if (!kIsWeb) {
           // File write removed — logs are copied to clipboard
         }
-      // ignore: avoid_catches_without_on_clauses
+        // ignore: avoid_catches_without_on_clauses
       } catch (_) {}
 
       await Clipboard.setData(ClipboardData(text: sb.toString()));
@@ -876,7 +876,7 @@ class SettingsScreenState extends State<SettingsScreen>
           'Скопировано в буфер (${logs.length} записей)',
         );
       }
-    // ignore: avoid_catches_without_on_clauses
+      // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       if (mounted) {
         showAppNotification(context, 'Ошибка экспорта: $e', isError: true);
@@ -1203,7 +1203,7 @@ class SettingsScreenState extends State<SettingsScreen>
                   'subscription_name',
                   SubscriptionConstants.defaultName,
                 );
-              // ignore: avoid_catches_without_on_clauses
+                // ignore: avoid_catches_without_on_clauses
               } catch (e) {
                 // ignore after dialog closed
               }

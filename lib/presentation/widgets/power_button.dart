@@ -51,8 +51,8 @@ class _PowerButtonState extends State<PowerButton>
     } else if (widget.state == VpnConnectionState.connecting ||
         widget.state == VpnConnectionState.reconnecting) {
       _pulseController
-          ..stop()
-          ..reset();
+        ..stop()
+        ..reset();
       _glowController.stop();
       _rotationController.repeat();
     } else {

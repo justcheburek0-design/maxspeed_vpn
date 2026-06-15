@@ -120,7 +120,7 @@ class VlessParser {
         encryption: uri.queryParameters['encryption'],
         raw: link,
       );
-    // ignore: avoid_catches_without_on_clauses
+      // ignore: avoid_catches_without_on_clauses
     } catch (e) {
       debugPrint('VLESS parse error: $e');
       return null;
