@@ -288,10 +288,9 @@ class AndroidVpnService implements VpnService {
     );
 
     try {
-      await _client.connect(SessionOptions(
-        config: config,
-        networkMode: NetworkMode.vpn,
-      ));
+      await _client.connect(
+        SessionOptions(config: config, networkMode: NetworkMode.vpn),
+      );
       _addLog(VpnLogLevel.info, 'connect OK');
       return true;
       // ignore: avoid_catches_without_on_clauses
@@ -338,12 +337,14 @@ class AndroidVpnService implements VpnService {
   @override
   Future<void> clearLogs() async {
     _logs.clear();
-    _logController.add(VpnLogEntry(
-      id: 'clear',
-      timestamp: DateTime.now(),
-      level: VpnLogLevel.info,
-      message: 'Logs cleared',
-    ));
+    _logController.add(
+      VpnLogEntry(
+        id: 'clear',
+        timestamp: DateTime.now(),
+        level: VpnLogLevel.info,
+        message: 'Logs cleared',
+      ),
+    );
   }
 
   @override
