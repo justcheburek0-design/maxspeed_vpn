@@ -47,9 +47,9 @@ class SingboxDownloader {
   /// Fetch the latest version from GitHub API.
   static Future<String?> _fetchLatestVersion() async {
     try {
-      final r = await http.get(Uri.parse(_repoApi)).timeout(
-        const Duration(seconds: 10),
-      );
+      final r = await http
+          .get(Uri.parse(_repoApi))
+          .timeout(const Duration(seconds: 10));
       if (r.statusCode == 200) {
         final data = json.decode(r.body) as Map<String, dynamic>;
         final tag = data['tag_name'] as String?;
@@ -79,9 +79,7 @@ class SingboxDownloader {
     // Download archive
     try {
       final request = http.Request('get', Uri.parse(url));
-      final response = await request.send().timeout(
-        const Duration(minutes: 5),
-      );
+      final response = await request.send().timeout(const Duration(minutes: 5));
 
       if (response.statusCode != 200) return null;
 
@@ -104,35 +102,43 @@ class SingboxDownloader {
       if (_archiveName.endsWith('.zip')) {
         // Windows: unzip
         if (Platform.isWindows) {
-          final result = await Process.run(
-            'powershell',
-            [
-              '-Command',
-              'Expand-Archive',
-              '-Path',
-              archivePath,
-              '-DestinationPath',
-              dir,
-              '-Force',
-            ],
-          );
+          final result = await Process.run('powershell', [
+            '-Command',
+            'Expand-Archive',
+            '-Path',
+            archivePath,
+            '-DestinationPath',
+            dir,
+            '-Force',
+          ]);
           if (result.exitCode != 0) {
             // Fallback: try 7z or manual
             return null;
           }
         } else {
-          final result = await Process.run('unzip', ['-o', archivePath, '-d', dir]);
+          final result = await Process.run('unzip', [
+            '-o',
+            archivePath,
+            '-d',
+            dir,
+          ]);
           if (result.exitCode != 0) return null;
         }
       } else {
         // tar.gz: extract
-        final result = await Process.run('tar', ['-xzf', archivePath, '-C', dir]);
+        final result = await Process.run('tar', [
+          '-xzf',
+          archivePath,
+          '-C',
+          dir,
+        ]);
         if (result.exitCode != 0) return null;
       }
 
       // The archive contains a sing-box-{ver}-{os}-{arch}/sing-box binary
       // Move it to the expected location
-      final extractedDir = '$dir/sing-box-$version-${_platformArchive.replaceAll('.zip', '').replaceAll('.tar.gz', '')}';
+      final extractedDir =
+          '$dir/sing-box-$version-${_platformArchive.replaceAll('.zip', '').replaceAll('.tar.gz', '')}';
       final extractedBinary = '$extractedDir/$_binaryName';
 
       if (await File(extractedBinary).exists()) {

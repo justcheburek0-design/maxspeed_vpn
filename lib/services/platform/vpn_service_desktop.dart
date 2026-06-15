@@ -55,11 +55,15 @@ class DesktopVpnService implements VpnService {
 
   /// Download progress stream (0.0 to 1.0).
   @override
-  Stream<double> get downloadProgressStream => _downloadProgressController.stream;
+  Stream<double> get downloadProgressStream =>
+      _downloadProgressController.stream;
 
   DesktopVpnService() {
     _addLog(VpnLogLevel.info, '${AppConstants.appName} Desktop VPN init');
-    _addLog(VpnLogLevel.info, 'OS: ${Platform.operatingSystem} ${Platform.operatingSystemVersion}');
+    _addLog(
+      VpnLogLevel.info,
+      'OS: ${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
+    );
   }
 
   // ── Binary discovery ──
@@ -71,7 +75,13 @@ class DesktopVpnService implements VpnService {
     final appFolder = Platform.resolvedExecutable.replaceAll('\\', '/');
     final dir = appFolder.substring(0, appFolder.lastIndexOf('/'));
     final suffix = Platform.isWindows ? '.exe' : '';
-    for (final p in ['$dir/sing-box$suffix', '$dir/singbox$suffix', '$dir/bin/sing-box$suffix', '/usr/local/bin/sing-box', '/usr/bin/sing-box']) {
+    for (final p in [
+      '$dir/sing-box$suffix',
+      '$dir/singbox$suffix',
+      '$dir/bin/sing-box$suffix',
+      '/usr/local/bin/sing-box',
+      '/usr/bin/sing-box',
+    ]) {
       if (await File(p).exists()) return p;
     }
     return null;
@@ -93,11 +103,17 @@ class DesktopVpnService implements VpnService {
   @override
   Future<bool> connect(VpnServer server) async {
     try {
-      _addLog(VpnLogLevel.info, 'Connecting to ${server.name} (${server.address}:${server.port})');
+      _addLog(
+        VpnLogLevel.info,
+        'Connecting to ${server.name} (${server.address}:${server.port})',
+      );
 
       // Check internet connectivity first
       if (!await _checkInternet()) {
-        _addLog(VpnLogLevel.error, 'No internet connection. Check your network.');
+        _addLog(
+          VpnLogLevel.error,
+          'No internet connection. Check your network.',
+        );
         _setState(VpnConnectionState.error);
         return false;
       }
@@ -112,7 +128,9 @@ class DesktopVpnService implements VpnService {
           _addLog(VpnLogLevel.info, 'Found cached sing-box: $bin');
         } else {
           // Download from GitHub
-          _setState(VpnConnectionState.connecting); // show connecting state during download
+          _setState(
+            VpnConnectionState.connecting,
+          ); // show connecting state during download
           final downloaded = await SingboxDownloader.download(
             onProgress: (received, total) {
               if (total > 0) {
@@ -125,8 +143,10 @@ class DesktopVpnService implements VpnService {
             bin = downloaded;
             _addLog(VpnLogLevel.info, 'sing-box downloaded: $bin');
           } else {
-            _addLog(VpnLogLevel.error,
-                'Failed to download sing-box. Check internet or install manually: https://sing-box.sagernet.org/installation/');
+            _addLog(
+              VpnLogLevel.error,
+              'Failed to download sing-box. Check internet or install manually: https://sing-box.sagernet.org/installation/',
+            );
             _setState(VpnConnectionState.error);
             return false;
           }
@@ -162,7 +182,8 @@ class DesktopVpnService implements VpnService {
 
       _process!.exitCode.then((code) {
         _addLog(VpnLogLevel.info, 'sing-box exited: $code');
-        if (_state == VpnConnectionState.connected || _state == VpnConnectionState.connecting) {
+        if (_state == VpnConnectionState.connected ||
+            _state == VpnConnectionState.connecting) {
           _setState(VpnConnectionState.disconnected);
           _activeServer = null;
           _stopStatsTimer();
@@ -204,7 +225,9 @@ class DesktopVpnService implements VpnService {
     final deadline = DateTime.now().add(timeout);
     while (DateTime.now().isBefore(deadline)) {
       try {
-        final r = await http.get(Uri.parse('http://127.0.0.1:$_apiPort/')).timeout(const Duration(seconds: 1));
+        final r = await http
+            .get(Uri.parse('http://127.0.0.1:$_apiPort/'))
+            .timeout(const Duration(seconds: 1));
         if (r.statusCode < 500) return true;
       } catch (_) {}
       await Future.delayed(const Duration(milliseconds: 300));
@@ -224,7 +247,9 @@ class DesktopVpnService implements VpnService {
       _stopStatsTimer();
       _connectTime = null;
       if (_configPath != null) {
-        try { await File(_configPath!).delete(); } catch (_) {}
+        try {
+          await File(_configPath!).delete();
+        } catch (_) {}
         _configPath = null;
       }
       _addLog(VpnLogLevel.info, 'VPN disconnected');
@@ -240,13 +265,19 @@ class DesktopVpnService implements VpnService {
       _addLog(VpnLogLevel.debug, 'Killing sing-box PID: ${_process!.pid}');
       _process!.kill(ProcessSignal.sigterm);
       Future.delayed(const Duration(seconds: 3), () {
-        try { _process?.kill(ProcessSignal.sigkill); } catch (_) {}
+        try {
+          _process?.kill(ProcessSignal.sigkill);
+        } catch (_) {}
       });
       _process = null;
     }
     try {
       if (Platform.isWindows) {
-        await Process.run('taskkill', ['/F', '/IM', 'sing-box.exe'], runInShell: true);
+        await Process.run('taskkill', [
+          '/F',
+          '/IM',
+          'sing-box.exe',
+        ], runInShell: true);
       } else {
         await Process.run('pkill', ['-f', 'sing-box'], runInShell: true);
       }
@@ -256,7 +287,10 @@ class DesktopVpnService implements VpnService {
   // ── Stats from sing-box API ──
 
   void _startStatsTimer() {
-    _statsTimer = Timer.periodic(const Duration(seconds: 2), (_) => _fetchStats());
+    _statsTimer = Timer.periodic(
+      const Duration(seconds: 2),
+      (_) => _fetchStats(),
+    );
   }
 
   void _stopStatsTimer() {
@@ -268,12 +302,16 @@ class DesktopVpnService implements VpnService {
 
   Future<void> _fetchStats() async {
     try {
-      final r = await http.get(Uri.parse('http://127.0.0.1:$_apiPort/traffic')).timeout(const Duration(seconds: 3));
+      final r = await http
+          .get(Uri.parse('http://127.0.0.1:$_apiPort/traffic'))
+          .timeout(const Duration(seconds: 3));
       if (r.statusCode == 200) {
         final data = json.decode(r.body) as Map<String, dynamic>;
         final up = _extractBytes(data, 'up');
         final down = _extractBytes(data, 'down');
-        final duration = _connectTime != null ? DateTime.now().difference(_connectTime!) : Duration.zero;
+        final duration = _connectTime != null
+            ? DateTime.now().difference(_connectTime!)
+            : Duration.zero;
         _stats = VpnConnectionStats(
           uploadTotal: up,
           downloadTotal: down,
@@ -309,7 +347,9 @@ class DesktopVpnService implements VpnService {
   Future<String> getStatus() async {
     if (_process != null) {
       try {
-        final r = await http.get(Uri.parse('http://127.0.0.1:$_apiPort/')).timeout(const Duration(seconds: 2));
+        final r = await http
+            .get(Uri.parse('http://127.0.0.1:$_apiPort/'))
+            .timeout(const Duration(seconds: 2));
         return 'running (PID: ${_process!.pid}, API: ${r.statusCode})';
       } catch (_) {
         return 'running (PID: ${_process!.pid}, API unreachable)';
@@ -364,8 +404,9 @@ class DesktopVpnService implements VpnService {
   /// Check internet connectivity by pinging a reliable host.
   Future<bool> _checkInternet() async {
     try {
-      final result = await InternetAddress.lookup('github.com')
-          .timeout(const Duration(seconds: 5));
+      final result = await InternetAddress.lookup(
+        'github.com',
+      ).timeout(const Duration(seconds: 5));
       return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
     } catch (_) {
       return false;

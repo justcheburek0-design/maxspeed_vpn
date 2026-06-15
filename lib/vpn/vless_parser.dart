@@ -24,23 +24,49 @@ class VlessLink {
   final String? description;
 
   const VlessLink({
-    required this.uuid, required this.address, required this.port,
-    required this.name, this.protocol = VpnProtocol.vless,
-    this.security = VpnSecurity.none, this.sni, this.fingerprint,
-    this.publicKey, this.shortId, this.path, this.host, this.alpn,
-    this.flow, this.network, this.mode, this.spx, this.encryption,
-    required this.raw, this.description,
+    required this.uuid,
+    required this.address,
+    required this.port,
+    required this.name,
+    this.protocol = VpnProtocol.vless,
+    this.security = VpnSecurity.none,
+    this.sni,
+    this.fingerprint,
+    this.publicKey,
+    this.shortId,
+    this.path,
+    this.host,
+    this.alpn,
+    this.flow,
+    this.network,
+    this.mode,
+    this.spx,
+    this.encryption,
+    required this.raw,
+    this.description,
   });
 
   VpnServer toServer() {
     return VpnServer(
-      id: '${address}_${port}_$uuid', name: name, address: address,
-      port: port, protocol: VpnProtocol.vless, security: security,
-      uuid: uuid, sni: sni, fingerprint: fingerprint,
-      publicKey: publicKey, shortId: shortId, path: path, host: host,
+      id: '${address}_${port}_$uuid',
+      name: name,
+      address: address,
+      port: port,
+      protocol: VpnProtocol.vless,
+      security: security,
+      uuid: uuid,
+      sni: sni,
+      fingerprint: fingerprint,
+      publicKey: publicKey,
+      shortId: shortId,
+      path: path,
+      host: host,
       alpn: alpn,
-      flow: isReality && (flow == null || flow!.isEmpty) ? 'xtls-rprx-vision' : flow,
-      rawConfig: {'link': raw}, description: description,
+      flow: isReality && (flow == null || flow!.isEmpty)
+          ? 'xtls-rprx-vision'
+          : flow,
+      rawConfig: {'link': raw},
+      description: description,
     );
   }
 
@@ -59,11 +85,17 @@ class VlessParser {
       if (uuid.isEmpty) return null;
 
       VpnSecurity security = VpnSecurity.none;
-      final sec = uri.queryParameters['security'] ?? uri.queryParameters['secure'];
+      final sec =
+          uri.queryParameters['security'] ?? uri.queryParameters['secure'];
       if (sec != null) {
         switch (sec.toLowerCase()) {
-          case 'reality': security = VpnSecurity.reality; break;
-          case 'tls': case 'ssl': security = VpnSecurity.tls; break;
+          case 'reality':
+            security = VpnSecurity.reality;
+            break;
+          case 'tls':
+          case 'ssl':
+            security = VpnSecurity.tls;
+            break;
         }
       }
 
@@ -72,10 +104,15 @@ class VlessParser {
       if (fragment.isNotEmpty) name = Uri.decodeComponent(fragment);
 
       return VlessLink(
-        uuid: uuid, address: uri.host, port: uri.port, name: name,
-        protocol: VpnProtocol.vless, security: security,
+        uuid: uuid,
+        address: uri.host,
+        port: uri.port,
+        name: name,
+        protocol: VpnProtocol.vless,
+        security: security,
         sni: uri.queryParameters['sni'] ?? uri.queryParameters['peer'],
-        fingerprint: uri.queryParameters['fp'] ?? uri.queryParameters['fingerprint'],
+        fingerprint:
+            uri.queryParameters['fp'] ?? uri.queryParameters['fingerprint'],
         publicKey: uri.queryParameters['pbk'],
         shortId: uri.queryParameters['sid'],
         path: uri.queryParameters['path'],

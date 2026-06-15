@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 
 /// Показывает уведомление сверху экрана, тёмное, не на всю ширину.
-void showAppNotification(BuildContext context, String message,
-    {bool isError = false, Duration duration = const Duration(seconds: 2)}) {
+void showAppNotification(
+  BuildContext context,
+  String message, {
+  bool isError = false,
+  Duration duration = const Duration(seconds: 2),
+}) {
   final overlay = Overlay.of(context);
   late OverlayEntry entry;
 
@@ -10,9 +14,7 @@ void showAppNotification(BuildContext context, String message,
     width: double.infinity,
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
     decoration: BoxDecoration(
-      color: isError
-          ? const Color(0xFF3D1A1A)
-          : const Color(0xFF0A0A0D),
+      color: isError ? const Color(0xFF3D1A1A) : const Color(0xFF0A0A0D),
       borderRadius: BorderRadius.circular(12),
       border: Border.all(
         color: isError
@@ -33,9 +35,7 @@ void showAppNotification(BuildContext context, String message,
       children: [
         Icon(
           isError ? Icons.error_outline_rounded : Icons.info_outline_rounded,
-          color: isError
-              ? const Color(0xFFFF7043)
-              : const Color(0xFFA8E63D),
+          color: isError ? const Color(0xFFFF7043) : const Color(0xFFA8E63D),
           size: 18,
         ),
         const SizedBox(width: 10),

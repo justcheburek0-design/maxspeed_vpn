@@ -51,7 +51,10 @@ class WebVpnService implements VpnService {
     try {
       final config = SingboxConfigGenerator.generate(server);
       await Clipboard.setData(ClipboardData(text: config));
-      _addLog(VpnLogLevel.info, 'Config for ${server.name} copied to clipboard');
+      _addLog(
+        VpnLogLevel.info,
+        'Config for ${server.name} copied to clipboard',
+      );
       return true;
     } catch (e) {
       _addLog(VpnLogLevel.error, 'Clipboard error: $e');

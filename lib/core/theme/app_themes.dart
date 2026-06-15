@@ -367,9 +367,12 @@ class AppTheme {
 
   Color protocolColor(VpnSecurity? security) {
     switch (security) {
-      case VpnSecurity.reality: return protocolReality;
-      case VpnSecurity.tls: return protocolTls;
-      default: return primary;
+      case VpnSecurity.reality:
+        return protocolReality;
+      case VpnSecurity.tls:
+        return protocolTls;
+      default:
+        return primary;
     }
   }
 
@@ -432,18 +435,72 @@ class AppTheme {
 
 class ThemeRegistry {
   static const List<AppTheme> dark = [
-    AppTheme(id: 'incy', name: 'INCY', color: AppThemeColor.green, palette: IncyDark.palette, isDark: true),
-    AppTheme(id: 'forest', name: 'Лесной', color: AppThemeColor.green, palette: DarkThemes.forest, isDark: true),
-    AppTheme(id: 'midnight', name: 'Полночь', color: AppThemeColor.blue, palette: DarkThemes.midnight, isDark: true),
-    AppTheme(id: 'cyberpunk', name: 'Киберпанк', color: AppThemeColor.purple, palette: DarkThemes.cyberpunk, isDark: true),
-    AppTheme(id: 'arctic', name: 'Арктика', color: AppThemeColor.cyan, palette: DarkThemes.arctic, isDark: true),
-    AppTheme(id: 'ember', name: 'Угли', color: AppThemeColor.orange, palette: DarkThemes.ember, isDark: true),
+    AppTheme(
+      id: 'incy',
+      name: 'INCY',
+      color: AppThemeColor.green,
+      palette: IncyDark.palette,
+      isDark: true,
+    ),
+    AppTheme(
+      id: 'forest',
+      name: 'Лесной',
+      color: AppThemeColor.green,
+      palette: DarkThemes.forest,
+      isDark: true,
+    ),
+    AppTheme(
+      id: 'midnight',
+      name: 'Полночь',
+      color: AppThemeColor.blue,
+      palette: DarkThemes.midnight,
+      isDark: true,
+    ),
+    AppTheme(
+      id: 'cyberpunk',
+      name: 'Киберпанк',
+      color: AppThemeColor.purple,
+      palette: DarkThemes.cyberpunk,
+      isDark: true,
+    ),
+    AppTheme(
+      id: 'arctic',
+      name: 'Арктика',
+      color: AppThemeColor.cyan,
+      palette: DarkThemes.arctic,
+      isDark: true,
+    ),
+    AppTheme(
+      id: 'ember',
+      name: 'Угли',
+      color: AppThemeColor.orange,
+      palette: DarkThemes.ember,
+      isDark: true,
+    ),
   ];
 
   static const List<AppTheme> light = [
-    AppTheme(id: 'mint', name: 'Мятный', color: AppThemeColor.green, palette: LightThemes.mint, isDark: false),
-    AppTheme(id: 'sky', name: 'Небо', color: AppThemeColor.blue, palette: LightThemes.sky, isDark: false),
-    AppTheme(id: 'rose', name: 'Роза', color: AppThemeColor.pink, palette: LightThemes.rose, isDark: false),
+    AppTheme(
+      id: 'mint',
+      name: 'Мятный',
+      color: AppThemeColor.green,
+      palette: LightThemes.mint,
+      isDark: false,
+    ),
+    AppTheme(
+      id: 'sky',
+      name: 'Небо',
+      color: AppThemeColor.blue,
+      palette: LightThemes.sky,
+      isDark: false,
+    ),
+    AppTheme(
+      id: 'rose',
+      name: 'Роза',
+      color: AppThemeColor.pink,
+      palette: LightThemes.rose,
+      isDark: false,
+    ),
   ];
 
   static AppTheme get(String id) {
@@ -467,5 +524,6 @@ class GlassTheme extends InheritedWidget {
   }
 
   @override
-  bool updateShouldNotify(GlassTheme oldWidget) => theme.id != oldWidget.theme.id;
+  bool updateShouldNotify(GlassTheme oldWidget) =>
+      theme.id != oldWidget.theme.id;
 }

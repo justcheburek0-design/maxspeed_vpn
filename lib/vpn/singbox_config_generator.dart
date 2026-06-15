@@ -4,17 +4,21 @@ import '../../data/models/vpn_models.dart';
 
 class SingboxConfigGenerator {
   static String generate(VpnServer server) {
-    final log = {
-      'level': 'info',
-      'timestamp': true,
-      'disabled': false,
-    };
+    final log = {'level': 'info', 'timestamp': true, 'disabled': false};
 
     final dns = {
       'servers': [
         {'type': 'local', 'tag': 'local-dns'},
-        {'type': 'https', 'tag': 'cloudflare-doh', 'server': SingboxConstants.cloudflareDns},
-        {'type': 'https', 'tag': 'google-doh', 'server': SingboxConstants.googleDns},
+        {
+          'type': 'https',
+          'tag': 'cloudflare-doh',
+          'server': SingboxConstants.cloudflareDns,
+        },
+        {
+          'type': 'https',
+          'tag': 'google-doh',
+          'server': SingboxConstants.googleDns,
+        },
       ],
       'final': 'cloudflare-doh',
       'strategy': SingboxConstants.dnsStrategy,
@@ -55,10 +59,7 @@ class SingboxConfigGenerator {
       'outbounds': outbounds,
       'route': route,
       'experimental': {
-        'cache_file': {
-          'enabled': true,
-          'store_fakeip': true,
-        },
+        'cache_file': {'enabled': true, 'store_fakeip': true},
       },
     };
 
@@ -115,18 +116,23 @@ class SingboxConfigGenerator {
     final tls = <String, dynamic>{};
     if (server.isTls) {
       tls['enabled'] = true;
-      if (server.sni != null && server.sni!.isNotEmpty) tls['server_name'] = server.sni;
-      if (server.alpn != null && server.alpn!.isNotEmpty) tls['alpn'] = server.alpn!.split(',');
+      if (server.sni != null && server.sni!.isNotEmpty)
+        tls['server_name'] = server.sni;
+      if (server.alpn != null && server.alpn!.isNotEmpty)
+        tls['alpn'] = server.alpn!.split(',');
       tls['utls'] = {
         'enabled': true,
-        'fingerprint': server.fingerprint ?? SingboxConstants.defaultFingerprint,
+        'fingerprint':
+            server.fingerprint ?? SingboxConstants.defaultFingerprint,
       };
     } else if (server.isReality) {
       tls['enabled'] = true;
-      if (server.sni != null && server.sni!.isNotEmpty) tls['server_name'] = server.sni;
+      if (server.sni != null && server.sni!.isNotEmpty)
+        tls['server_name'] = server.sni;
       tls['utls'] = {
         'enabled': true,
-        'fingerprint': server.fingerprint ?? SingboxConstants.defaultFingerprint,
+        'fingerprint':
+            server.fingerprint ?? SingboxConstants.defaultFingerprint,
       };
       tls['reality'] = {
         'enabled': true,
@@ -153,14 +159,17 @@ class SingboxConfigGenerator {
         'server_name': server.sni ?? server.address,
         'utls': {
           'enabled': true,
-          'fingerprint': server.fingerprint ?? SingboxConstants.defaultFingerprint,
+          'fingerprint':
+              server.fingerprint ?? SingboxConstants.defaultFingerprint,
         },
       },
     };
   }
 
   static Map<String, dynamic> _buildShadowsocksOutbound(VpnServer server) {
-    final method = server.rawConfig['method'] as String? ?? SingboxConstants.defaultSsMethod;
+    final method =
+        server.rawConfig['method'] as String? ??
+        SingboxConstants.defaultSsMethod;
     return {
       'type': 'shadowsocks',
       'tag': 'vpn',
@@ -186,14 +195,9 @@ class SingboxConfigGenerator {
       'server_name': server.sni ?? server.address,
     };
     if (server.fingerprint != null && server.fingerprint!.isNotEmpty) {
-      tls['utls'] = {
-        'enabled': true,
-        'fingerprint': server.fingerprint!,
-      };
+      tls['utls'] = {'enabled': true, 'fingerprint': server.fingerprint!};
     }
     outbound['tls'] = tls;
     return outbound;
   }
 }
-
-

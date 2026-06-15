@@ -119,30 +119,63 @@ class AndroidVpnService implements VpnService {
   }
 
   Map<String, dynamic> _serverToJson(VpnServer s) => {
-    'id': s.id, 'name': s.name, 'address': s.address, 'port': s.port,
-    'protocol': s.protocol.name, 'security': s.security.name,
-    'uuid': s.uuid, 'sni': s.sni, 'fingerprint': s.fingerprint,
-    'publicKey': s.publicKey, 'shortId': s.shortId, 'path': s.path,
-    'host': s.host, 'alpn': s.alpn, 'flow': s.flow, 'mode': s.mode,
-    'rawConfig': s.rawConfig, 'isFavorite': s.isFavorite,
-    'ping': s.ping, 'country': s.country, 'flag': s.flag,
+    'id': s.id,
+    'name': s.name,
+    'address': s.address,
+    'port': s.port,
+    'protocol': s.protocol.name,
+    'security': s.security.name,
+    'uuid': s.uuid,
+    'sni': s.sni,
+    'fingerprint': s.fingerprint,
+    'publicKey': s.publicKey,
+    'shortId': s.shortId,
+    'path': s.path,
+    'host': s.host,
+    'alpn': s.alpn,
+    'flow': s.flow,
+    'mode': s.mode,
+    'rawConfig': s.rawConfig,
+    'isFavorite': s.isFavorite,
+    'ping': s.ping,
+    'country': s.country,
+    'flag': s.flag,
   };
 
   VpnServer? _serverFromJson(Map<String, dynamic> m) {
     try {
       return VpnServer(
-        id: m['id'] ?? '', name: m['name'] ?? '', address: m['address'] ?? '',
+        id: m['id'] ?? '',
+        name: m['name'] ?? '',
+        address: m['address'] ?? '',
         port: m['port'] ?? 443,
-        protocol: VpnProtocol.values.firstWhere((p) => p.name == m['protocol'], orElse: () => VpnProtocol.vless),
-        security: VpnSecurity.values.firstWhere((s) => s.name == m['security'], orElse: () => VpnSecurity.none),
-        uuid: m['uuid'], sni: m['sni'], fingerprint: m['fingerprint'],
-        publicKey: m['publicKey'], shortId: m['shortId'], path: m['path'],
-        host: m['host'], alpn: m['alpn'], flow: m['flow'], mode: m['mode'],
+        protocol: VpnProtocol.values.firstWhere(
+          (p) => p.name == m['protocol'],
+          orElse: () => VpnProtocol.vless,
+        ),
+        security: VpnSecurity.values.firstWhere(
+          (s) => s.name == m['security'],
+          orElse: () => VpnSecurity.none,
+        ),
+        uuid: m['uuid'],
+        sni: m['sni'],
+        fingerprint: m['fingerprint'],
+        publicKey: m['publicKey'],
+        shortId: m['shortId'],
+        path: m['path'],
+        host: m['host'],
+        alpn: m['alpn'],
+        flow: m['flow'],
+        mode: m['mode'],
         rawConfig: Map<String, dynamic>.from(m['rawConfig'] ?? {}),
-        isFavorite: m['isFavorite'] ?? false, ping: m['ping'],
-        country: m['country'], flag: m['flag'],
+        isFavorite: m['isFavorite'] ?? false,
+        ping: m['ping'],
+        country: m['country'],
+        flag: m['flag'],
       );
-    } catch (_) { return null; }
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Загрузить сервера из подписки (вызывается из UI)
@@ -150,11 +183,16 @@ class AndroidVpnService implements VpnService {
     try {
       String content;
       if (url.startsWith('http://') || url.startsWith('https://')) {
-        final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
+        final response = await http
+            .get(Uri.parse(url))
+            .timeout(const Duration(seconds: 15));
         if (response.statusCode == 200) {
           content = response.body;
         } else {
-          _addLog(VpnLogLevel.error, 'Subscription HTTP ${response.statusCode}');
+          _addLog(
+            VpnLogLevel.error,
+            'Subscription HTTP ${response.statusCode}',
+          );
           return;
         }
       } else if (url.startsWith('data:')) {
@@ -183,7 +221,8 @@ class AndroidVpnService implements VpnService {
 
   VpnLogLevel _parseLogLevel(String msg) {
     final lower = msg.toLowerCase();
-    if (lower.contains('error') || lower.contains('fatal')) return VpnLogLevel.error;
+    if (lower.contains('error') || lower.contains('fatal'))
+      return VpnLogLevel.error;
     if (lower.contains('warn')) return VpnLogLevel.warning;
     if (lower.contains('debug')) return VpnLogLevel.debug;
     return VpnLogLevel.info;
@@ -235,8 +274,14 @@ class AndroidVpnService implements VpnService {
       _accumulatedDownload = 0;
 
       final config = SingboxConfigGenerator.generate(server);
-      _addLog(VpnLogLevel.info, 'Подключение к ${server.name} (${server.address}:${server.port})');
-      _addLog(VpnLogLevel.info, 'Конфиг (${config.length} bytes): ${config.length > 500 ? '${config.substring(0, 500)}...' : config}');
+      _addLog(
+        VpnLogLevel.info,
+        'Подключение к ${server.name} (${server.address}:${server.port})',
+      );
+      _addLog(
+        VpnLogLevel.info,
+        'Конфиг (${config.length} bytes): ${config.length > 500 ? '${config.substring(0, 500)}...' : config}',
+      );
 
       try {
         await _singbox.saveConfig(config);
@@ -301,7 +346,10 @@ class AndroidVpnService implements VpnService {
         final buffered = await _singbox.getLogs();
         if (buffered.isNotEmpty) {
           singboxLogs.addAll(buffered);
-          _addLog(VpnLogLevel.info, 'Получено ${buffered.length} буферизованных логов sing-box');
+          _addLog(
+            VpnLogLevel.info,
+            'Получено ${buffered.length} буферизованных логов sing-box',
+          );
         }
       } catch (_) {}
 
@@ -309,7 +357,10 @@ class AndroidVpnService implements VpnService {
         final confirmedState = await completer.future.timeout(
           const Duration(seconds: 30),
           onTimeout: () {
-            _addLog(VpnLogLevel.error, 'Таймаут ожидания статуса Started (30с)');
+            _addLog(
+              VpnLogLevel.error,
+              'Таймаут ожидания статуса Started (30с)',
+            );
             return VpnConnectionState.disconnected;
           },
         );
@@ -320,9 +371,15 @@ class AndroidVpnService implements VpnService {
               _addLog(VpnLogLevel.debug, 'sing-box: $msg');
             }
           } else {
-            _addLog(VpnLogLevel.debug, 'sing-box: нет логов (sing-box не запустил ядро?)');
+            _addLog(
+              VpnLogLevel.debug,
+              'sing-box: нет логов (sing-box не запустил ядро?)',
+            );
           }
-          _addLog(VpnLogLevel.error, 'VPN не перешёл в connected, состояние: $confirmedState');
+          _addLog(
+            VpnLogLevel.error,
+            'VPN не перешёл в connected, состояние: $confirmedState',
+          );
           _state = VpnConnectionState.error;
           _activeServer = null;
           _stateController.add(_state);
@@ -365,7 +422,8 @@ class AndroidVpnService implements VpnService {
       final map = item as Map;
       final pkg = map['packageName'] as String? ?? '';
       final name = map['appName'] as String? ?? pkg.split('.').last;
-      if (pkg.isNotEmpty) apps.add(InstalledApp(packageName: pkg, appName: name));
+      if (pkg.isNotEmpty)
+        apps.add(InstalledApp(packageName: pkg, appName: name));
     }
     return apps;
   }

@@ -19,7 +19,8 @@ class PowerButton extends StatefulWidget {
   State<PowerButton> createState() => _PowerButtonState();
 }
 
-class _PowerButtonState extends State<PowerButton> with TickerProviderStateMixin {
+class _PowerButtonState extends State<PowerButton>
+    with TickerProviderStateMixin {
   late AnimationController _pulseController;
   late AnimationController _rotationController;
   late AnimationController _glowController;
@@ -96,7 +97,8 @@ class _PowerButtonState extends State<PowerButton> with TickerProviderStateMixin
     final theme = GlassTheme.of(context);
     final color = _getColor(theme);
     final isConnected = widget.state == VpnConnectionState.connected;
-    final isConnecting = widget.state == VpnConnectionState.connecting ||
+    final isConnecting =
+        widget.state == VpnConnectionState.connecting ||
         widget.state == VpnConnectionState.reconnecting;
 
     return GestureDetector(
@@ -105,9 +107,15 @@ class _PowerButtonState extends State<PowerButton> with TickerProviderStateMixin
         widget.onPressed();
       },
       child: AnimatedBuilder(
-        animation: Listenable.merge([_pulseController, _rotationController, _glowController]),
+        animation: Listenable.merge([
+          _pulseController,
+          _rotationController,
+          _glowController,
+        ]),
         builder: (context, child) {
-          final glowOpacity = isConnected ? 0.15 + (_glowController.value * 0.15) : 0.0;
+          final glowOpacity = isConnected
+              ? 0.15 + (_glowController.value * 0.15)
+              : 0.0;
           return Transform.scale(
             scale: isConnected ? 1.0 + (_pulseController.value * 0.04) : 1.0,
             child: Stack(

@@ -1,18 +1,36 @@
-
-enum VpnProtocol { naive, vless, vmess, trojan, shadowsocks, wireguard, tuic, hysteria, xhttp }
+enum VpnProtocol {
+  naive,
+  vless,
+  vmess,
+  trojan,
+  shadowsocks,
+  wireguard,
+  tuic,
+  hysteria,
+  xhttp,
+}
 
 extension VpnProtocolExt on VpnProtocol {
   String get displayName {
     switch (this) {
-      case VpnProtocol.naive: return 'Naive';
-      case VpnProtocol.vless: return 'VLESS';
-      case VpnProtocol.vmess: return 'VMess';
-      case VpnProtocol.trojan: return 'Trojan';
-      case VpnProtocol.shadowsocks: return 'Shadowsocks';
-      case VpnProtocol.wireguard: return 'WireGuard';
-      case VpnProtocol.tuic: return 'TUIC';
-      case VpnProtocol.hysteria: return 'Hysteria';
-      case VpnProtocol.xhttp: return 'XHTTP';
+      case VpnProtocol.naive:
+        return 'Naive';
+      case VpnProtocol.vless:
+        return 'VLESS';
+      case VpnProtocol.vmess:
+        return 'VMess';
+      case VpnProtocol.trojan:
+        return 'Trojan';
+      case VpnProtocol.shadowsocks:
+        return 'Shadowsocks';
+      case VpnProtocol.wireguard:
+        return 'WireGuard';
+      case VpnProtocol.tuic:
+        return 'TUIC';
+      case VpnProtocol.hysteria:
+        return 'Hysteria';
+      case VpnProtocol.xhttp:
+        return 'XHTTP';
     }
   }
 
@@ -24,29 +42,47 @@ enum VpnSecurity { none, tls, reality }
 extension VpnSecurityExt on VpnSecurity {
   String get displayName {
     switch (this) {
-      case VpnSecurity.none: return 'None';
-      case VpnSecurity.tls: return 'TLS';
-      case VpnSecurity.reality: return 'REALITY';
+      case VpnSecurity.none:
+        return 'None';
+      case VpnSecurity.tls:
+        return 'TLS';
+      case VpnSecurity.reality:
+        return 'REALITY';
     }
   }
 }
 
-enum VpnConnectionState { disconnected, connecting, connected, disconnecting, error, reconnecting }
+enum VpnConnectionState {
+  disconnected,
+  connecting,
+  connected,
+  disconnecting,
+  error,
+  reconnecting,
+}
 
 extension VpnConnectionStateExt on VpnConnectionState {
   String get displayName {
     switch (this) {
-      case VpnConnectionState.disconnected: return 'Отключено';
-      case VpnConnectionState.connecting: return 'Подключение...';
-      case VpnConnectionState.connected: return 'Подключено';
-      case VpnConnectionState.disconnecting: return 'Отключение...';
-      case VpnConnectionState.error: return 'Ошибка';
-      case VpnConnectionState.reconnecting: return 'Переподключение...';
+      case VpnConnectionState.disconnected:
+        return 'Отключено';
+      case VpnConnectionState.connecting:
+        return 'Подключение...';
+      case VpnConnectionState.connected:
+        return 'Подключено';
+      case VpnConnectionState.disconnecting:
+        return 'Отключение...';
+      case VpnConnectionState.error:
+        return 'Ошибка';
+      case VpnConnectionState.reconnecting:
+        return 'Переподключение...';
     }
   }
 
   bool get isConnected => this == VpnConnectionState.connected;
-  bool get isConnecting => this == VpnConnectionState.connecting || this == VpnConnectionState.reconnecting;
+  bool get isConnecting =>
+      this == VpnConnectionState.connecting ||
+      this == VpnConnectionState.reconnecting;
 }
 
 class VpnServer {
@@ -101,27 +137,54 @@ class VpnServer {
   });
 
   VpnServer copyWith({
-    String? id, String? name, String? address, int? port,
-    VpnProtocol? protocol, VpnSecurity? security, String? username,
-    String? uuid, String? sni, String? fingerprint,
-    String? publicKey, String? shortId, String? path, String? host,
-    String? alpn, String? flow, String? mode, Map<String, dynamic>? rawConfig,
-    bool? isFavorite, int? ping, String? country, String? flag, String? description,
+    String? id,
+    String? name,
+    String? address,
+    int? port,
+    VpnProtocol? protocol,
+    VpnSecurity? security,
+    String? username,
+    String? uuid,
+    String? sni,
+    String? fingerprint,
+    String? publicKey,
+    String? shortId,
+    String? path,
+    String? host,
+    String? alpn,
+    String? flow,
+    String? mode,
+    Map<String, dynamic>? rawConfig,
+    bool? isFavorite,
+    int? ping,
+    String? country,
+    String? flag,
+    String? description,
   }) {
     return VpnServer(
-      id: id ?? this.id, name: name ?? this.name,
-      address: address ?? this.address, port: port ?? this.port,
-      protocol: protocol ?? this.protocol, security: security ?? this.security,
+      id: id ?? this.id,
+      name: name ?? this.name,
+      address: address ?? this.address,
+      port: port ?? this.port,
+      protocol: protocol ?? this.protocol,
+      security: security ?? this.security,
       username: username ?? this.username,
-      uuid: uuid ?? this.uuid, sni: sni ?? this.sni,
+      uuid: uuid ?? this.uuid,
+      sni: sni ?? this.sni,
       fingerprint: fingerprint ?? this.fingerprint,
-      publicKey: publicKey ?? this.publicKey, shortId: shortId ?? this.shortId,
-      path: path ?? this.path, host: host ?? this.host,
-      alpn: alpn ?? this.alpn, flow: flow ?? this.flow, mode: mode ?? this.mode,
+      publicKey: publicKey ?? this.publicKey,
+      shortId: shortId ?? this.shortId,
+      path: path ?? this.path,
+      host: host ?? this.host,
+      alpn: alpn ?? this.alpn,
+      flow: flow ?? this.flow,
+      mode: mode ?? this.mode,
       rawConfig: rawConfig ?? this.rawConfig,
       isFavorite: isFavorite ?? this.isFavorite,
-      ping: ping ?? this.ping, country: country ?? this.country,
-      flag: flag ?? this.flag, description: description ?? this.description,
+      ping: ping ?? this.ping,
+      country: country ?? this.country,
+      flag: flag ?? this.flag,
+      description: description ?? this.description,
     );
   }
 
@@ -130,12 +193,15 @@ class VpnServer {
   String get securityTag => security.displayName;
   String get pingText => ping != null ? '${ping}ms' : '—';
   String get rawLink => rawConfig['link'] as String? ?? '';
-  bool get isXhttp => protocol == VpnProtocol.vless && (mode == 'xhttp' || (rawLink.contains('type=xhttp')));
+  bool get isXhttp =>
+      protocol == VpnProtocol.vless &&
+      (mode == 'xhttp' || (rawLink.contains('type=xhttp')));
   bool get isReality => security == VpnSecurity.reality;
   bool get isTls => security == VpnSecurity.tls;
 
   @override
-  bool operator ==(Object other) => identical(this, other) || other is VpnServer && other.id == id;
+  bool operator ==(Object other) =>
+      identical(this, other) || other is VpnServer && other.id == id;
   @override
   int get hashCode => id.hashCode;
 }
@@ -165,11 +231,14 @@ class VpnSubscription {
     this.lastUpdated,
   });
 
-  int get daysRemaining => expiresAt == null ? -1 : expiresAt!.difference(DateTime.now()).inDays;
+  int get daysRemaining =>
+      expiresAt == null ? -1 : expiresAt!.difference(DateTime.now()).inDays;
   bool get isExpired => expiresAt != null && DateTime.now().isAfter(expiresAt!);
   double get dataUsedGB => (uploadBytes + downloadBytes) / (1024 * 1024 * 1024);
   bool get isUnlimited => totalBytes <= 0;
-  double get dataProgress => (isUnlimited || totalBytes <= 0) ? 0 : (uploadBytes + downloadBytes) / totalBytes;
+  double get dataProgress => (isUnlimited || totalBytes <= 0)
+      ? 0
+      : (uploadBytes + downloadBytes) / totalBytes;
 }
 
 class VpnConnectionStats {
@@ -196,9 +265,15 @@ class VpnConnectionStats {
   });
 
   VpnConnectionStats copyWith({
-    int? bytesSent, int? bytesReceived, int? uploadSpeed,
-    int? downloadSpeed, int? uploadTotal, int? downloadTotal,
-    Duration? duration, int? pingMs, String? serverName,
+    int? bytesSent,
+    int? bytesReceived,
+    int? uploadSpeed,
+    int? downloadSpeed,
+    int? uploadTotal,
+    int? downloadTotal,
+    Duration? duration,
+    int? pingMs,
+    String? serverName,
   }) => VpnConnectionStats(
     bytesSent: bytesSent ?? this.bytesSent,
     bytesReceived: bytesReceived ?? this.bytesReceived,
@@ -234,8 +309,5 @@ class InstalledApp {
   final String packageName;
   final String appName;
 
-  const InstalledApp({
-    required this.packageName,
-    required this.appName,
-  });
+  const InstalledApp({required this.packageName, required this.appName});
 }

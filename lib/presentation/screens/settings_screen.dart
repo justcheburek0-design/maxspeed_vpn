@@ -16,11 +16,17 @@ import '../../core/utils/notifications.dart';
 class SettingsScreen extends StatefulWidget {
   final VpnService vpnService;
   final ValueChanged<String>? onThemeChanged;
-  const SettingsScreen({super.key, required this.vpnService, this.onThemeChanged});
-  @override State<SettingsScreen> createState() => SettingsScreenState();
+  const SettingsScreen({
+    super.key,
+    required this.vpnService,
+    this.onThemeChanged,
+  });
+  @override
+  State<SettingsScreen> createState() => SettingsScreenState();
 }
 
-class SettingsScreenState extends State<SettingsScreen> with TickerProviderStateMixin {
+class SettingsScreenState extends State<SettingsScreen>
+    with TickerProviderStateMixin {
   String _selectedTheme = 'incy';
   List<InstalledApp> _apps = [];
   Set<String> _excludedApps = {};
@@ -35,7 +41,12 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
   String _logLevelFilter = 'all';
   final ScrollController _logScrollController = ScrollController();
 
-  static const List<String> _pingerTypes = ['tcp', 'http_get', 'http_head', 'icmp'];
+  static const List<String> _pingerTypes = [
+    'tcp',
+    'http_get',
+    'http_head',
+    'icmp',
+  ];
   static const Map<String, String> _pingerTypeLabels = {
     'tcp': 'TCP Connect',
     'http_get': 'HTTP GET',
@@ -76,10 +87,14 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
       _selectedTheme = prefs.getString('theme') ?? 'incy';
       _searchEnabled = prefs.getBool('search_enabled') ?? false;
       _pingerType = prefs.getString('pinger_type') ?? 'tcp';
-      _pingerUrl = prefs.getString('pinger_url') ?? 'https://www.gstatic.com/generate_204';
+      _pingerUrl =
+          prefs.getString('pinger_url') ??
+          'https://www.gstatic.com/generate_204';
       _pingerTimeout = prefs.getInt('pinger_timeout') ?? 3;
       _proxyModeBypass = prefs.getBool('proxy_mode_bypass') ?? true;
-      _excludedApps = excludedStr.isEmpty ? <String>{} : excludedStr.split(',').toSet();
+      _excludedApps = excludedStr.isEmpty
+          ? <String>{}
+          : excludedStr.split(',').toSet();
     });
   }
 
@@ -103,7 +118,8 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
         final map = item as Map;
         final pkg = map['packageName'] as String? ?? '';
         final name = map['appName'] as String? ?? pkg.split('.').last;
-        if (pkg.isNotEmpty) apps.add(InstalledApp(packageName: pkg, appName: name));
+        if (pkg.isNotEmpty)
+          apps.add(InstalledApp(packageName: pkg, appName: name));
       }
       apps.sort((a, b) => a.appName.compareTo(b.appName));
       setState(() => _apps = apps);
@@ -115,10 +131,15 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
 
   List<InstalledApp> get _filteredApps {
     if (_appSearchQuery.isEmpty) return _apps;
-    return _apps.where((a) =>
-      a.appName.toLowerCase().contains(_appSearchQuery.toLowerCase()) ||
-      a.packageName.toLowerCase().contains(_appSearchQuery.toLowerCase())
-    ).toList();
+    return _apps
+        .where(
+          (a) =>
+              a.appName.toLowerCase().contains(_appSearchQuery.toLowerCase()) ||
+              a.packageName.toLowerCase().contains(
+                _appSearchQuery.toLowerCase(),
+              ),
+        )
+        .toList();
   }
 
   @override
@@ -132,7 +153,11 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
         elevation: 0,
         title: Text(
           'Настройки',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: theme.onSurface),
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: theme.onSurface,
+          ),
         ),
         bottom: TabBar(
           controller: _tabController,
@@ -140,7 +165,10 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
           unselectedLabelColor: theme.onSurfaceVariant,
           indicatorColor: theme.primary,
           dividerColor: theme.outlineVariant,
-          labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          labelStyle: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
           unselectedLabelStyle: const TextStyle(fontSize: 13),
           tabAlignment: TabAlignment.fill,
           tabs: const [
@@ -175,20 +203,22 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
             borderRadius: BorderRadius.circular(12),
             side: BorderSide(color: theme.outlineVariant),
           ),
-          child: Column(children: [
-            ListTile(
-              leading: Icon(Icons.link, color: theme.primary),
-              title: const Text('URL подписки'),
-              subtitle: Text(
-                'Вставьте ссылку или используйте mxspd://',
-                style: TextStyle(fontSize: 12, color: theme.onSurfaceVariant),
+          child: Column(
+            children: [
+              ListTile(
+                leading: Icon(Icons.link, color: theme.primary),
+                title: const Text('URL подписки'),
+                subtitle: Text(
+                  'Вставьте ссылку или используйте mxspd://',
+                  style: TextStyle(fontSize: 12, color: theme.onSurfaceVariant),
+                ),
+                trailing: IconButton(
+                  icon: Icon(Icons.add_circle_outline, color: theme.primary),
+                  onPressed: _showAddSubscriptionDialog,
+                ),
               ),
-              trailing: IconButton(
-                icon: Icon(Icons.add_circle_outline, color: theme.primary),
-                onPressed: _showAddSubscriptionDialog,
-              ),
-            ),
-          ]),
+            ],
+          ),
         ),
         const SizedBox(height: 20),
         _sectionTitle(theme, 'ПОДКЛЮЧЕНИЕ'),
@@ -199,13 +229,25 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
             borderRadius: BorderRadius.circular(12),
             side: BorderSide(color: theme.outlineVariant),
           ),
-          child: Column(children: [
-            _switchTile(theme, 'Автоподключение', false, (v) {}),
-            Divider(color: theme.outlineVariant, height: 1, indent: 16, endIndent: 16),
-            _switchTile(theme, 'Reconnect при обрыве', true, (v) {}),
-            Divider(color: theme.outlineVariant, height: 1, indent: 16, endIndent: 16),
-            _switchTile(theme, 'Уведомления', true, (v) {}),
-          ]),
+          child: Column(
+            children: [
+              _switchTile(theme, 'Автоподключение', false, (v) {}),
+              Divider(
+                color: theme.outlineVariant,
+                height: 1,
+                indent: 16,
+                endIndent: 16,
+              ),
+              _switchTile(theme, 'Reconnect при обрыве', true, (v) {}),
+              Divider(
+                color: theme.outlineVariant,
+                height: 1,
+                indent: 16,
+                endIndent: 16,
+              ),
+              _switchTile(theme, 'Уведомления', true, (v) {}),
+            ],
+          ),
         ),
         const SizedBox(height: 20),
         _sectionTitle(theme, 'ПОИСК'),
@@ -223,8 +265,14 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
               final prefs = await SharedPreferences.getInstance();
               await prefs.setBool('search_enabled', v);
             },
-            title: Text('Показать поисковик серверов', style: TextStyle(color: theme.onSurface, fontSize: 14)),
-            subtitle: Text('По умолчанию скрыт', style: TextStyle(fontSize: 12, color: theme.onSurfaceVariant)),
+            title: Text(
+              'Показать поисковик серверов',
+              style: TextStyle(color: theme.onSurface, fontSize: 14),
+            ),
+            subtitle: Text(
+              'По умолчанию скрыт',
+              style: TextStyle(fontSize: 12, color: theme.onSurfaceVariant),
+            ),
             activeColor: theme.primary,
           ),
         ),
@@ -240,13 +288,25 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
             borderRadius: BorderRadius.circular(12),
             side: BorderSide(color: theme.outlineVariant),
           ),
-          child: Column(children: [
-            _buildVersionTile(theme),
-            Divider(color: theme.outlineVariant, height: 1, indent: 16, endIndent: 16),
-            _infoTile(theme, 'Протокол', SettingsConstants.protocolDisplay),
-            Divider(color: theme.outlineVariant, height: 1, indent: 16, endIndent: 16),
-            _infoTile(theme, 'Engine', SettingsConstants.engineDisplay),
-          ]),
+          child: Column(
+            children: [
+              _buildVersionTile(theme),
+              Divider(
+                color: theme.outlineVariant,
+                height: 1,
+                indent: 16,
+                endIndent: 16,
+              ),
+              _infoTile(theme, 'Протокол', SettingsConstants.protocolDisplay),
+              Divider(
+                color: theme.outlineVariant,
+                height: 1,
+                indent: 16,
+                endIndent: 16,
+              ),
+              _infoTile(theme, 'Engine', SettingsConstants.engineDisplay),
+            ],
+          ),
         ),
       ],
     );
@@ -260,142 +320,207 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(color: theme.outlineVariant),
       ),
-      child: Column(children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'Протокол пинга',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: theme.onSurfaceVariant, letterSpacing: 0.8),
-            ),
-          ),
-        ),
-        const SizedBox(height: 4),
-        ..._pingerTypes.map((t) => RadioListTile<String>(
-          value: t,
-          groupValue: _pingerType,
-          onChanged: (v) async {
-            if (v == null) return;
-            setState(() => _pingerType = v);
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.setString('pinger_type', v);
-          },
-          title: Text(_pingerTypeLabels[t] ?? t, style: TextStyle(color: theme.onSurface, fontSize: 14)),
-          subtitle: Text(_pingerTypeSublabels[t] ?? t, style: TextStyle(fontSize: 11, color: theme.onSurfaceVariant)),
-          activeColor: theme.primary,
-          dense: true,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-        )),
-        Divider(color: theme.outlineVariant, height: 1, indent: 16, endIndent: 16),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'URL для теста',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: theme.onSurfaceVariant, letterSpacing: 0.8),
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: TextField(
-            controller: TextEditingController(text: _pingerUrl),
-            style: TextStyle(color: theme.onSurface, fontSize: 13),
-            decoration: InputDecoration(
-              hintText: 'https://...',
-              hintStyle: TextStyle(color: theme.onSurfaceVariant, fontSize: 13),
-              filled: true,
-              fillColor: theme.bgPrimary,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: theme.outlineVariant),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Протокол пинга',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: theme.onSurfaceVariant,
+                  letterSpacing: 0.8,
+                ),
               ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: theme.primary),
-              ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             ),
-            onChanged: (v) async {
-              _pingerUrl = v;
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.setString('pinger_url', v);
-            },
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: Row(
-            children: _pingerPresets.entries.map((e) {
-              final isSelected = _pingerUrl == e.value;
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: isSelected
-                    ? FilledButton(
-                        onPressed: () {},
-                        style: FilledButton.styleFrom(
-                          backgroundColor: theme.primary,
-                          foregroundColor: theme.onPrimary,
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                          minimumSize: Size.zero,
-                          textStyle: const TextStyle(fontSize: 12),
+          const SizedBox(height: 4),
+          ..._pingerTypes.map(
+            (t) => RadioListTile<String>(
+              value: t,
+              groupValue: _pingerType,
+              onChanged: (v) async {
+                if (v == null) return;
+                setState(() => _pingerType = v);
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setString('pinger_type', v);
+              },
+              title: Text(
+                _pingerTypeLabels[t] ?? t,
+                style: TextStyle(color: theme.onSurface, fontSize: 14),
+              ),
+              subtitle: Text(
+                _pingerTypeSublabels[t] ?? t,
+                style: TextStyle(fontSize: 11, color: theme.onSurfaceVariant),
+              ),
+              activeColor: theme.primary,
+              dense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+            ),
+          ),
+          Divider(
+            color: theme.outlineVariant,
+            height: 1,
+            indent: 16,
+            endIndent: 16,
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'URL для теста',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: theme.onSurfaceVariant,
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: TextField(
+              controller: TextEditingController(text: _pingerUrl),
+              style: TextStyle(color: theme.onSurface, fontSize: 13),
+              decoration: InputDecoration(
+                hintText: 'https://...',
+                hintStyle: TextStyle(
+                  color: theme.onSurfaceVariant,
+                  fontSize: 13,
+                ),
+                filled: true,
+                fillColor: theme.bgPrimary,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: theme.outlineVariant),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: theme.primary),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+              ),
+              onChanged: (v) async {
+                _pingerUrl = v;
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setString('pinger_url', v);
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Row(
+              children: _pingerPresets.entries.map((e) {
+                final isSelected = _pingerUrl == e.value;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: isSelected
+                      ? FilledButton(
+                          onPressed: () {},
+                          style: FilledButton.styleFrom(
+                            backgroundColor: theme.primary,
+                            foregroundColor: theme.onPrimary,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 8,
+                            ),
+                            minimumSize: Size.zero,
+                            textStyle: const TextStyle(fontSize: 12),
+                          ),
+                          child: Text(e.key),
+                        )
+                      : OutlinedButton(
+                          onPressed: () async {
+                            setState(() => _pingerUrl = e.value);
+                            final prefs = await SharedPreferences.getInstance();
+                            await prefs.setString('pinger_url', e.value);
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: theme.onSurface,
+                            side: BorderSide(color: theme.outlineVariant),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 8,
+                            ),
+                            minimumSize: Size.zero,
+                            textStyle: const TextStyle(fontSize: 12),
+                          ),
+                          child: Text(e.key),
                         ),
-                        child: Text(e.key),
-                      )
-                    : OutlinedButton(
-                        onPressed: () async {
-                          setState(() => _pingerUrl = e.value);
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                Text(
+                  'Таймаут',
+                  style: TextStyle(color: theme.onSurface, fontSize: 14),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: Icon(
+                    Icons.remove_circle_outline,
+                    color: theme.primary,
+                    size: 22,
+                  ),
+                  onPressed: _pingerTimeout > 1
+                      ? () async {
+                          setState(() => _pingerTimeout--);
                           final prefs = await SharedPreferences.getInstance();
-                          await prefs.setString('pinger_url', e.value);
-                        },
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: theme.onSurface,
-                          side: BorderSide(color: theme.outlineVariant),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                          minimumSize: Size.zero,
-                          textStyle: const TextStyle(fontSize: 12),
-                        ),
-                        child: Text(e.key),
-                      ),
-              );
-            }).toList(),
+                          await prefs.setInt('pinger_timeout', _pingerTimeout);
+                        }
+                      : null,
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
+                  padding: EdgeInsets.zero,
+                ),
+                Text(
+                  '$_pingerTimeout сек',
+                  style: TextStyle(
+                    color: theme.primary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(
+                    Icons.add_circle_outline,
+                    color: theme.primary,
+                    size: 22,
+                  ),
+                  onPressed: _pingerTimeout < 30
+                      ? () async {
+                          setState(() => _pingerTimeout++);
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.setInt('pinger_timeout', _pingerTimeout);
+                        }
+                      : null,
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
+                  padding: EdgeInsets.zero,
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 4),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            children: [
-              Text('Таймаут', style: TextStyle(color: theme.onSurface, fontSize: 14)),
-              const Spacer(),
-              IconButton(
-                icon: Icon(Icons.remove_circle_outline, color: theme.primary, size: 22),
-                onPressed: _pingerTimeout > 1 ? () async {
-                  setState(() => _pingerTimeout--);
-                  final prefs = await SharedPreferences.getInstance();
-                  await prefs.setInt('pinger_timeout', _pingerTimeout);
-                } : null,
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                padding: EdgeInsets.zero,
-              ),
-              Text('$_pingerTimeout сек', style: TextStyle(color: theme.primary, fontWeight: FontWeight.w600, fontSize: 14)),
-              IconButton(
-                icon: Icon(Icons.add_circle_outline, color: theme.primary, size: 22),
-                onPressed: _pingerTimeout < 30 ? () async {
-                  setState(() => _pingerTimeout++);
-                  final prefs = await SharedPreferences.getInstance();
-                  await prefs.setInt('pinger_timeout', _pingerTimeout);
-                } : null,
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                padding: EdgeInsets.zero,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-      ]),
+          const SizedBox(height: 8),
+        ],
+      ),
     );
   }
 
@@ -417,7 +542,15 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                   child: Align(
                     alignment: Alignment.centerLeft,
-                    child: Text('Режим', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: theme.onSurfaceVariant, letterSpacing: 0.8)),
+                    child: Text(
+                      'Режим',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: theme.onSurfaceVariant,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
                   ),
                 ),
                 RadioListTile<bool>(
@@ -430,7 +563,13 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
                     await prefs.setBool('proxy_mode_bypass', v);
                   },
                   title: const Text('Обход', style: TextStyle(fontSize: 14)),
-                  subtitle: Text('Все приложения через VPN, кроме выбранных', style: TextStyle(fontSize: 11, color: theme.onSurfaceVariant)),
+                  subtitle: Text(
+                    'Все приложения через VPN, кроме выбранных',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: theme.onSurfaceVariant,
+                    ),
+                  ),
                   activeColor: theme.primary,
                   dense: true,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 4),
@@ -444,8 +583,17 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
                     final prefs = await SharedPreferences.getInstance();
                     await prefs.setBool('proxy_mode_bypass', v);
                   },
-                  title: const Text('Только через туннель', style: TextStyle(fontSize: 14)),
-                  subtitle: Text('Только выбранные приложения через VPN', style: TextStyle(fontSize: 11, color: theme.onSurfaceVariant)),
+                  title: const Text(
+                    'Только через туннель',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                  subtitle: Text(
+                    'Только выбранные приложения через VPN',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: theme.onSurfaceVariant,
+                    ),
+                  ),
                   activeColor: theme.primary,
                   dense: true,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 4),
@@ -468,7 +616,9 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
                 side: BorderSide(color: theme.outlineVariant),
               ),
             ),
-            hintStyle: WidgetStatePropertyAll(TextStyle(color: theme.onSurfaceVariant)),
+            hintStyle: WidgetStatePropertyAll(
+              TextStyle(color: theme.onSurfaceVariant),
+            ),
             onChanged: (v) => setState(() => _appSearchQuery = v),
           ),
         ),
@@ -502,11 +652,27 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
                           });
                           _saveExcludedApps();
                         },
-                        title: Text(app.appName, style: TextStyle(color: theme.onSurface, fontSize: 14)),
-                        subtitle: Text(app.packageName, style: TextStyle(fontSize: 11, color: theme.onSurfaceVariant)),
+                        title: Text(
+                          app.appName,
+                          style: TextStyle(
+                            color: theme.onSurface,
+                            fontSize: 14,
+                          ),
+                        ),
+                        subtitle: Text(
+                          app.packageName,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: theme.onSurfaceVariant,
+                          ),
+                        ),
                         activeColor: theme.primary,
-                        checkboxShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                        checkboxShape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                        ),
                       ),
                     );
                   },
@@ -523,7 +689,14 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
           child: Row(
             children: [
-              Text('Логи', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: theme.onSurface)),
+              Text(
+                'Логи',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: theme.onSurface,
+                ),
+              ),
               const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -531,7 +704,14 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
                   color: theme.primaryContainer,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Text('${widget.vpnService.logs.length}', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: theme.onPrimaryContainer)),
+                child: Text(
+                  '${widget.vpnService.logs.length}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: theme.onPrimaryContainer,
+                  ),
+                ),
               ),
               const Spacer(),
               // Level filter dropdown
@@ -554,7 +734,11 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
                 tooltip: 'Очистить',
               ),
               IconButton(
-                icon: Icon(Icons.share_outlined, color: theme.primary, size: 20),
+                icon: Icon(
+                  Icons.share_outlined,
+                  color: theme.primary,
+                  size: 20,
+                ),
                 onPressed: () => _exportLogs(theme),
                 tooltip: 'Экспорт',
               ),
@@ -568,16 +752,25 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
               var logs = widget.vpnService.logs.reversed.toList();
               // Apply level filter
               if (_logLevelFilter != 'all') {
-                logs = logs.where((l) => l.level.name == _logLevelFilter).toList();
+                logs = logs
+                    .where((l) => l.level.name == _logLevelFilter)
+                    .toList();
               }
               if (logs.isEmpty) {
                 return Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.description_outlined, size: 48, color: theme.outline),
+                      Icon(
+                        Icons.description_outlined,
+                        size: 48,
+                        color: theme.outline,
+                      ),
                       const SizedBox(height: 12),
-                      Text('Логи пусты', style: TextStyle(color: theme.onSurfaceVariant)),
+                      Text(
+                        'Логи пусты',
+                        style: TextStyle(color: theme.onSurfaceVariant),
+                      ),
                     ],
                   ),
                 );
@@ -609,8 +802,17 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
                     child: ListTile(
                       dense: true,
                       leading: _logIcon(theme, log.level),
-                      title: Text(log.message, style: TextStyle(fontSize: 13, color: theme.onSurface)),
-                      subtitle: Text(_formatTime(log.timestamp), style: TextStyle(fontSize: 10, color: theme.onSurfaceVariant)),
+                      title: Text(
+                        log.message,
+                        style: TextStyle(fontSize: 13, color: theme.onSurface),
+                      ),
+                      subtitle: Text(
+                        _formatTime(log.timestamp),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: theme.onSurfaceVariant,
+                        ),
+                      ),
                     ),
                   );
                 },
@@ -629,11 +831,16 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
         backgroundColor: theme.surface,
         surfaceTintColor: Colors.transparent,
         title: const Text('Очистить логи?'),
-        content: const Text('Все записи будут удалены. Это действие нельзя отменить.'),
+        content: const Text(
+          'Все записи будут удалены. Это действие нельзя отменить.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Отмена', style: TextStyle(color: theme.onSurfaceVariant)),
+            child: Text(
+              'Отмена',
+              style: TextStyle(color: theme.onSurfaceVariant),
+            ),
           ),
           FilledButton(
             onPressed: () {
@@ -641,7 +848,10 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
               setState(() {});
               Navigator.pop(ctx);
             },
-            style: FilledButton.styleFrom(backgroundColor: theme.error, foregroundColor: theme.onError),
+            style: FilledButton.styleFrom(
+              backgroundColor: theme.error,
+              foregroundColor: theme.onError,
+            ),
             child: const Text('Очистить'),
           ),
         ],
@@ -665,7 +875,9 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
       sb.writeln('=' * 40);
       sb.writeln();
       for (final log in logs) {
-        sb.writeln('[${_formatTime(log.timestamp)}] ${log.level.name.toUpperCase()}: ${log.message}');
+        sb.writeln(
+          '[${_formatTime(log.timestamp)}] ${log.level.name.toUpperCase()}: ${log.message}',
+        );
       }
 
       try {
@@ -677,7 +889,10 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
       await Clipboard.setData(ClipboardData(text: sb.toString()));
 
       if (mounted) {
-        showAppNotification(context, 'Скопировано в буфер (${logs.length} записей)');
+        showAppNotification(
+          context,
+          'Скопировано в буфер (${logs.length} записей)',
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -705,11 +920,15 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
       padding: const EdgeInsets.only(bottom: 6),
       child: Card(
         elevation: 0,
-        color: isSelected ? t.primary.withValues(alpha: 0.08) : currentTheme.surface,
+        color: isSelected
+            ? t.primary.withValues(alpha: 0.08)
+            : currentTheme.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
           side: BorderSide(
-            color: isSelected ? t.primary.withValues(alpha: 0.5) : currentTheme.outlineVariant,
+            color: isSelected
+                ? t.primary.withValues(alpha: 0.5)
+                : currentTheme.outlineVariant,
             width: isSelected ? 1.5 : 1,
           ),
         ),
@@ -723,10 +942,20 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
               borderRadius: BorderRadius.circular(10),
             ),
           ),
-          title: Text(t.name, style: TextStyle(color: currentTheme.onSurface, fontWeight: FontWeight.w500)),
+          title: Text(
+            t.name,
+            style: TextStyle(
+              color: currentTheme.onSurface,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
           trailing: isSelected
               ? Icon(Icons.check_circle, color: t.primary, size: 20)
-              : Icon(Icons.circle_outlined, color: currentTheme.outline, size: 20),
+              : Icon(
+                  Icons.circle_outlined,
+                  color: currentTheme.outline,
+                  size: 20,
+                ),
         ),
       ),
     );
@@ -737,16 +966,29 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
       padding: const EdgeInsets.only(left: 4, bottom: 8),
       child: Text(
         title,
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: theme.onSurfaceVariant, letterSpacing: 0.8),
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: theme.onSurfaceVariant,
+          letterSpacing: 0.8,
+        ),
       ),
     );
   }
 
-  Widget _switchTile(AppTheme theme, String label, bool value, ValueChanged<bool> onChanged) {
+  Widget _switchTile(
+    AppTheme theme,
+    String label,
+    bool value,
+    ValueChanged<bool> onChanged,
+  ) {
     return SwitchListTile(
       value: value,
       onChanged: onChanged,
-      title: Text(label, style: TextStyle(color: theme.onSurface, fontSize: 14)),
+      title: Text(
+        label,
+        style: TextStyle(color: theme.onSurface, fontSize: 14),
+      ),
       activeColor: theme.primary,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16),
     );
@@ -754,8 +996,18 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
 
   Widget _infoTile(AppTheme theme, String label, String value) {
     return ListTile(
-      title: Text(label, style: TextStyle(color: theme.onSurfaceVariant, fontSize: 14)),
-      trailing: Text(value, style: TextStyle(color: theme.onSurface, fontWeight: FontWeight.w500, fontSize: 14)),
+      title: Text(
+        label,
+        style: TextStyle(color: theme.onSurfaceVariant, fontSize: 14),
+      ),
+      trailing: Text(
+        value,
+        style: TextStyle(
+          color: theme.onSurface,
+          fontWeight: FontWeight.w500,
+          fontSize: 14,
+        ),
+      ),
     );
   }
 
@@ -771,19 +1023,23 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
             final state = updateSnap.data ?? UpdateManager.instance.state;
             final hasUpdate = UpdateManager.instance.availableUpdate != null;
             final isReady = UpdateManager.instance.isUpdateReady;
-            final isDownloading = state.status == 'downloading' || state.status == 'paused';
+            final isDownloading =
+                state.status == 'downloading' || state.status == 'paused';
 
             String trailing = version;
             Widget? trailingWidget;
             VoidCallback? onTap;
 
             if (isDownloading) {
-              final pct = state.progress > 0 ? (state.progress * 100).toStringAsFixed(0) : null;
+              final pct = state.progress > 0
+                  ? (state.progress * 100).toStringAsFixed(0)
+                  : null;
               trailingWidget = Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   SizedBox(
-                    width: 16, height: 16,
+                    width: 16,
+                    height: 16,
                     child: CircularProgressIndicator(
                       value: state.progress > 0 ? state.progress : null,
                       strokeWidth: 2,
@@ -791,55 +1047,92 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Text(pct != null ? '$pct%' : 'Скачивание...',
-                      style: TextStyle(color: theme.primary, fontSize: 13)),
+                  Text(
+                    pct != null ? '$pct%' : 'Скачивание...',
+                    style: TextStyle(color: theme.primary, fontSize: 13),
+                  ),
                 ],
               );
-              onTap = () { UpdateManager.instance.downloadAndInstall(context); };
+              onTap = () {
+                UpdateManager.instance.downloadAndInstall(context);
+              };
             } else if (isReady) {
               trailingWidget = Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: theme.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: theme.primary.withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: theme.primary.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.system_update, size: 14, color: theme.primary),
                     const SizedBox(width: 4),
-                    Text('Установить', style: TextStyle(color: theme.primary, fontSize: 12, fontWeight: FontWeight.w600)),
+                    Text(
+                      'Установить',
+                      style: TextStyle(
+                        color: theme.primary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ],
                 ),
               );
               onTap = () async {
                 final apk = await UpdateManager.instance.getDownloadedApk(
-                    UpdateManager.instance.availableUpdate!.version);
+                  UpdateManager.instance.availableUpdate!.version,
+                );
                 if (apk != null && context.mounted) {
                   UpdateManager.instance.downloadAndInstall(context);
                 }
               };
             } else if (hasUpdate) {
               trailingWidget = Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: theme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text('v${UpdateManager.instance.availableUpdate!.version} →',
-                    style: TextStyle(color: theme.primary, fontSize: 12, fontWeight: FontWeight.w600)),
+                child: Text(
+                  'v${UpdateManager.instance.availableUpdate!.version} →',
+                  style: TextStyle(
+                    color: theme.primary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               );
-              onTap = () { UpdateManager.instance.downloadAndInstall(context); };
+              onTap = () {
+                UpdateManager.instance.downloadAndInstall(context);
+              };
             }
 
             return ListTile(
               onTap: onTap,
-              title: Text('Версия', style: TextStyle(color: theme.onSurfaceVariant, fontSize: 14)),
-              trailing: trailingWidget ?? Text(
-                trailing,
-                style: TextStyle(color: theme.onSurface, fontWeight: FontWeight.w500, fontSize: 14),
+              title: Text(
+                'Версия',
+                style: TextStyle(color: theme.onSurfaceVariant, fontSize: 14),
               ),
+              trailing:
+                  trailingWidget ??
+                  Text(
+                    trailing,
+                    style: TextStyle(
+                      color: theme.onSurface,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 14,
+                    ),
+                  ),
             );
           },
         );
@@ -852,7 +1145,11 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
       case VpnLogLevel.error:
         return Icon(Icons.error_outline, color: theme.error, size: 16);
       case VpnLogLevel.warning:
-        return Icon(Icons.warning_amber_outlined, color: theme.warning, size: 16);
+        return Icon(
+          Icons.warning_amber_outlined,
+          color: theme.warning,
+          size: 16,
+        );
       case VpnLogLevel.debug:
         return Icon(Icons.bug_report_outlined, color: theme.outline, size: 16);
       default:
@@ -879,7 +1176,10 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
       builder: (ctx) => AlertDialog(
         backgroundColor: theme.surface,
         surfaceTintColor: Colors.transparent,
-        title: Text('Добавить подписку', style: TextStyle(color: theme.onSurface)),
+        title: Text(
+          'Добавить подписку',
+          style: TextStyle(color: theme.onSurface),
+        ),
         content: TextField(
           controller: controller,
           style: TextStyle(color: theme.onSurface),
@@ -901,21 +1201,34 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Отмена', style: TextStyle(color: theme.onSurfaceVariant)),
+            child: Text(
+              'Отмена',
+              style: TextStyle(color: theme.onSurfaceVariant),
+            ),
           ),
           FilledButton(
             onPressed: () async {
               final input = controller.text.trim();
-              if (input.isEmpty) { Navigator.pop(ctx); return; }
+              if (input.isEmpty) {
+                Navigator.pop(ctx);
+                return;
+              }
               Navigator.pop(ctx);
               try {
                 String content;
-                if (input.startsWith('http://') || input.startsWith('https://')) {
-                  final response = await http.get(Uri.parse(input)).timeout(const Duration(seconds: 30));
+                if (input.startsWith('http://') ||
+                    input.startsWith('https://')) {
+                  final response = await http
+                      .get(Uri.parse(input))
+                      .timeout(const Duration(seconds: 30));
                   if (response.statusCode == 200) {
                     content = response.body;
                   } else {
-                    showAppNotification(context, 'Ошибка загрузки: HTTP ${response.statusCode}', isError: true);
+                    showAppNotification(
+                      context,
+                      'Ошибка загрузки: HTTP ${response.statusCode}',
+                      isError: true,
+                    );
                     return;
                   }
                 } else {
@@ -923,19 +1236,32 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
                 }
                 final servers = SubscriptionParser.parse(content);
                 if (servers.isEmpty) {
-                  showAppNotification(context, 'Не удалось распарсить подписку. Проверьте формат.', isError: true);
+                  showAppNotification(
+                    context,
+                    'Не удалось распарсить подписку. Проверьте формат.',
+                    isError: true,
+                  );
                   return;
                 }
                 await widget.vpnService.updateServers(servers);
                 final prefs = await SharedPreferences.getInstance();
                 await prefs.setString('subscription_url', input);
-                await prefs.setString('subscription_name', SubscriptionConstants.defaultName);
-                showAppNotification(context, 'Подписка добавлена: ${servers.length} серверов');
+                await prefs.setString(
+                  'subscription_name',
+                  SubscriptionConstants.defaultName,
+                );
+                showAppNotification(
+                  context,
+                  'Подписка добавлена: ${servers.length} серверов',
+                );
               } catch (e) {
                 showAppNotification(context, 'Ошибка: $e', isError: true);
               }
             },
-            style: FilledButton.styleFrom(backgroundColor: theme.primary, foregroundColor: theme.onPrimary),
+            style: FilledButton.styleFrom(
+              backgroundColor: theme.primary,
+              foregroundColor: theme.onPrimary,
+            ),
             child: const Text('Добавить'),
           ),
         ],
@@ -952,7 +1278,9 @@ class SettingsScreenState extends State<SettingsScreen> with TickerProviderState
     final prefs = await SharedPreferences.getInstance();
     return {
       'type': prefs.getString('pinger_type') ?? 'tcp',
-      'url': prefs.getString('pinger_url') ?? 'https://www.gstatic.com/generate_204',
+      'url':
+          prefs.getString('pinger_url') ??
+          'https://www.gstatic.com/generate_204',
       'timeout': prefs.getInt('pinger_timeout') ?? 3,
     };
   }
