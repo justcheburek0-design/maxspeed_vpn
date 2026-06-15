@@ -1,0 +1,17 @@
+#!/bin/bash
+# Pre-commit hook: проверяет форматирование и статический анализ Dart/Flutter
+# Установка: chmod +x .githooks/pre-commit && git config core.hooksPath .githooks
+
+set -e
+
+echo "🔍 Running dart format check..."
+if ! dart format --set-exit-if-changed --output=none lib/ test/; then
+  echo ""
+  echo "❌ Formatting issues found. Run 'dart format lib/ test/' to fix."
+  exit 1
+fi
+
+echo "🔍 Running dart analyze..."
+dart analyze --fatal-infos lib/ test/
+
+echo "✅ All checks passed!"

@@ -9,8 +9,34 @@ on:
   workflow_dispatch:
 
 jobs:
+  # ─── Lint & Format Check ───────────────────────
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.1'
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Check formatting (dart format)
+        run: dart format --set-exit-if-changed --output=none lib/ test/
+
+      - name: Static analysis (dart analyze)
+        run: dart analyze --fatal-infos lib/ test/
+
   # ─── Android APK ───────────────────────────────
   build-android:
+    needs: lint
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -69,6 +95,7 @@ jobs:
 
   # ─── Linux Desktop ─────────────────────────────
   build-linux:
+    needs: lint
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -112,6 +139,7 @@ jobs:
 
   # ─── Windows Desktop ───────────────────────────
   build-windows:
+    needs: lint
     runs-on: windows-latest
     timeout-minutes: 60
 
@@ -172,6 +200,7 @@ jobs:
 
   # ─── macOS Desktop (arm64 + x86_64) ──────────
   build-macos:
+    needs: lint
     runs-on: macos-latest
     timeout-minutes: 90
 
@@ -251,6 +280,7 @@ jobs:
 
   # ─── iOS ───────────────────────────────────────
   build-ios:
+    needs: lint
     runs-on: macos-latest
     timeout-minutes: 45
     continue-on-error: true
@@ -345,6 +375,7 @@ jobs:
 
   # ─── Web ───────────────────────────────────────
   build-web:
+    needs: lint
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
