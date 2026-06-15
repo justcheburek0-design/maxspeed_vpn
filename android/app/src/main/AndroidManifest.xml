@@ -3,8 +3,11 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.BIND_VPN_SERVICE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -44,16 +47,48 @@
 
     </activity>
 
-        <!-- sing-box VPN Service -->
+        <!-- sing-box VPN Service (flutter_singbox_client) -->
         <service
-            android:name="com.tecclub.flutter_singbox.bg.VPNService"
+            android:name="dev.amirzr.singbox.service.SingboxVPNService"
             android:exported="false"
-            android:foregroundServiceType="dataSync"
+            android:foregroundServiceType="systemExempted"
             android:permission="android.permission.BIND_VPN_SERVICE">
             <intent-filter>
                 <action android:name="android.net.VpnService" />
             </intent-filter>
+            <property
+                android:name="android.net.VpnService.SUPPORTS_ALWAYS_ON"
+                android:value="true" />
         </service>
+
+        <!-- sing-box Proxy Service (flutter_singbox_client) -->
+        <service
+            android:name="dev.amirzr.singbox.service.SingboxProxyService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Network proxy service for Sing-box SDK" />
+        </service>
+
+        <!-- Boot receiver (flutter_singbox_client) -->
+        <receiver
+            android:name="dev.amirzr.singbox.receivers.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Notification stop receiver (flutter_singbox_client) -->
+        <receiver
+            android:name="dev.amirzr.singbox.receivers.NotificationStopReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="dev.amirzr.singbox.STOP" />
+            </intent-filter>
+        </receiver>
 
         <meta-data
             android:name="flutterEmbedding"

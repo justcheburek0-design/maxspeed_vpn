@@ -16,7 +16,7 @@ dependencies:
   package_info_plus: ^8.0.0
   http: ^1.2.0
   # Android-only — imported conditionally in vpn_service_android.dart
-  flutter_singbox_vpn: ^1.1.2
+  flutter_singbox_client: ^1.0.1
 
 dev_dependencies:
   flutter_test:

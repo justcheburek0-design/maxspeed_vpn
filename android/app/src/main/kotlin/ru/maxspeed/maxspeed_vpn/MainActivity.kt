@@ -39,9 +39,8 @@ class MainActivity : FlutterActivity() {
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            // Use FileProvider from flutter_singbox_vpn (authority: ${packageName}.cache)
-            // The cache_paths.xml includes cache-path, external-cache-path, external-files-path
-            val uri = FileProvider.getUriForFile(this, "${packageName}.cache", file)
+            // Use standard FileProvider (authority: ${packageName}.fileprovider)
+            val uri = FileProvider.getUriForFile(this, "${packageName}.fileprovider", file)
             intent.setDataAndType(uri, "application/vnd.android.package-archive")
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         } else {

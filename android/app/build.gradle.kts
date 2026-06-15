@@ -20,7 +20,7 @@ android {
 
     defaultConfig {
         applicationId = "ru.maxspeed.maxspeed_vpn"
-        minSdk = flutter.minSdkVersion
+        minSdk = 24
         targetSdk = 35
         versionCode = 27
         versionName = "1.4.15+27"

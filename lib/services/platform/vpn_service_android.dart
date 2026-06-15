@@ -1,16 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter_singbox_vpn/flutter_singbox.dart';
-import 'package:http/http.dart' as http;
+import 'package:flutter_singbox_client/flutter_singbox_client.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:maxspeed_vpn/data/models/vpn_models.dart';
 import 'package:maxspeed_vpn/vpn/singbox_config_generator.dart';
-import 'package:maxspeed_vpn/vpn/subscription_parser.dart';
 import 'package:maxspeed_vpn/services/vpn_service_interface.dart';
 
-/// Android-реализация VPN сервиса на базе flutter_singbox_vpn.
+/// Android-реализация VPN сервиса на базе flutter_singbox_client.
 class AndroidVpnService implements VpnService {
-  final FlutterSingbox _singbox = FlutterSingbox();
+  final SingboxClient _client = SingboxClient();
 
   final _stateController = StreamController<VpnConnectionState>.broadcast();
   final _statsController = StreamController<VpnConnectionStats>.broadcast();
@@ -26,6 +24,11 @@ class AndroidVpnService implements VpnService {
   int _accumulatedDownload = 0;
   DateTime? _connectTime;
   Timer? _durationTimer;
+
+  StreamSubscription<ServiceState>? _stateSub;
+  StreamSubscription<TrafficStats>? _trafficSub;
+  StreamSubscription<List<LogEntry>>? _logSub;
+  StreamSubscription<String>? _faultSub;
 
   @override
   Stream<VpnConnectionState> get stateStream => _stateController.stream;
@@ -49,21 +52,25 @@ class AndroidVpnService implements VpnService {
   Stream<List<VpnServer>> get serversStream => _serversController.stream;
 
   AndroidVpnService() {
-    _singbox.onStatusChanged.listen((statusMap) {
-      // Handle alert messages from sing-box native service
-      if (statusMap['type'] == 'alert') {
-        final alertMsg = statusMap['message'] as String? ?? 'Unknown error';
-        _addLog(VpnLogLevel.error, 'sing-box: $alertMsg');
-        _updateStateFromSingbox(0); // Stopped
-        return;
-      }
-      final code = statusMap['statusCode'] as int? ?? 0;
-      _updateStateFromSingbox(code);
+    _init();
+  }
+
+  Future<void> _init() async {
+    try {
+      await _client.initialize();
+      // ignore: avoid_catches_without_on_clauses
+    } catch (e) {
+      _addLog(VpnLogLevel.error, 'sing-box initialize failed: $e');
+    }
+    await _loadServers();
+
+    _stateSub = _client.serviceStateStream.listen((serviceState) {
+      _updateStateFromServiceState(serviceState);
     });
 
-    _singbox.onTrafficUpdate.listen((statsMap) {
-      final up = statsMap['uplinkSpeed'] as int? ?? 0;
-      final down = statsMap['downlinkSpeed'] as int? ?? 0;
+    _trafficSub = _client.trafficStatsStream.listen((trafficStats) {
+      final up = trafficStats.uplinkBps.toInt();
+      final down = trafficStats.downlinkBps.toInt();
       _accumulatedUpload += up;
       _accumulatedDownload += down;
       _stats = _stats.copyWith(
@@ -75,21 +82,100 @@ class AndroidVpnService implements VpnService {
       _statsController.add(_stats);
     });
 
-    _singbox.onLogMessage.listen((logEvent) {
-      if (logEvent['type'] == 'log') {
-        final msg = logEvent['message'] as String? ?? '';
-        final entry = VpnLogEntry(
+    _logSub = _client.coreLogStream.listen((logEntries) {
+      for (final entry in logEntries) {
+        final vpnEntry = VpnLogEntry(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
           timestamp: DateTime.now(),
-          level: _parseLogLevel(msg),
-          message: msg,
+          level: _mapLogLevel(entry.level),
+          message: entry.message,
         );
-        _logs.add(entry);
+        _logs.add(vpnEntry);
         if (_logs.length > 500) _logs.removeAt(0);
-        _logController.add(entry);
+        _logController.add(vpnEntry);
       }
     });
-    _loadServers();
+
+    _faultSub = _client.faultStream.listen((error) {
+      _addLog(VpnLogLevel.error, 'sing-box: $error');
+      _updateState(VpnConnectionState.error);
+    });
+  }
+
+  // ─── State mapping ───
+
+  void _updateStateFromServiceState(ServiceState serviceState) {
+    switch (serviceState) {
+      case ServiceState.stopped:
+        _updateState(VpnConnectionState.disconnected);
+      case ServiceState.starting:
+        _updateState(VpnConnectionState.connecting);
+      case ServiceState.started:
+        _updateState(VpnConnectionState.connected);
+      case ServiceState.stopping:
+        _updateState(VpnConnectionState.disconnecting);
+    }
+  }
+
+  void _updateState(VpnConnectionState newState) {
+    _state = newState;
+    _stateController.add(_state);
+    if (newState == VpnConnectionState.connected) {
+      _connectTime = DateTime.now();
+      _startDurationTimer();
+    } else if (newState == VpnConnectionState.disconnected ||
+        newState == VpnConnectionState.error) {
+      _stopDurationTimer();
+      if (newState == VpnConnectionState.disconnected) {
+        _activeServer = null;
+      }
+    }
+  }
+
+  void _addLog(VpnLogLevel level, String message) {
+    final entry = VpnLogEntry(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      timestamp: DateTime.now(),
+      level: level,
+      message: message,
+    );
+    _logs.add(entry);
+    if (_logs.length > 500) _logs.removeAt(0);
+    _logController.add(entry);
+  }
+
+  VpnLogLevel _mapLogLevel(LogLevel level) {
+    switch (level) {
+      case LogLevel.trace:
+      case LogLevel.debug:
+        return VpnLogLevel.debug;
+      case LogLevel.info:
+        return VpnLogLevel.info;
+      case LogLevel.warn:
+        return VpnLogLevel.warning;
+      case LogLevel.error:
+      case LogLevel.fatal:
+      case LogLevel.panic:
+        return VpnLogLevel.error;
+    }
+  }
+
+  // ─── Duration timer ───
+
+  void _startDurationTimer() {
+    _stopDurationTimer();
+    _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_connectTime != null && _state == VpnConnectionState.connected) {
+        final duration = DateTime.now().difference(_connectTime!);
+        _stats = _stats.copyWith(duration: duration);
+        _statsController.add(_stats);
+      }
+    });
+  }
+
+  void _stopDurationTimer() {
+    _durationTimer?.cancel();
+    _durationTimer = null;
   }
 
   // ─── Server storage ───
@@ -181,305 +267,120 @@ class AndroidVpnService implements VpnService {
     }
   }
 
-  /// Загрузить сервера из подписки (вызывается из UI)
-  Future<void> loadSubscription(String url) async {
-    try {
-      String content;
-      if (url.startsWith('http://') || url.startsWith('https://')) {
-        final response = await http
-            .get(Uri.parse(url))
-            .timeout(const Duration(seconds: 15));
-        if (response.statusCode == 200) {
-          content = response.body;
-        } else {
-          _addLog(
-            VpnLogLevel.error,
-            'Subscription HTTP ${response.statusCode}',
-          );
-          return;
-        }
-      } else if (url.startsWith('data:')) {
-        content = Uri.decodeFull(url.substring(url.indexOf(',') + 1));
-      } else {
-        content = url;
-      }
-      final parsed = SubscriptionParser.parse(content);
-      _servers
-        ..clear()
-        ..addAll(parsed);
-      await _saveServers();
-      _serversController.add(List.unmodifiable(_servers));
-      _addLog(VpnLogLevel.info, 'Загружено ${parsed.length} серверов');
-      // ignore: avoid_catches_without_on_clauses
-    } catch (e) {
-      _addLog(VpnLogLevel.error, 'Ошибка загрузки подписки: $e');
-    }
-  }
-
-  /// Заменить список серверов (после парсинга подписки)
-  @override
-  Future<void> updateServers(List<VpnServer> newServers) async {
-    _servers
-      ..clear()
-      ..addAll(newServers);
-    await _saveServers();
-    _serversController.add(List.unmodifiable(_servers));
-  }
-
-  VpnLogLevel _parseLogLevel(String msg) {
-    final lower = msg.toLowerCase();
-    if (lower.contains('error') || lower.contains('fatal')) {
-      return VpnLogLevel.error;
-    }
-    if (lower.contains('warn')) return VpnLogLevel.warning;
-    if (lower.contains('debug')) return VpnLogLevel.debug;
-    return VpnLogLevel.info;
-  }
-
-  void _updateStateFromSingbox(int code) {
-    switch (code) {
-      case 0:
-        _state = VpnConnectionState.disconnected;
-        _activeServer = null;
-        _durationTimer?.cancel();
-        _connectTime = null;
-      case 1:
-        _state = VpnConnectionState.connecting;
-      case 2:
-        _state = VpnConnectionState.connected;
-        _connectTime = DateTime.now();
-        _startDurationTimer();
-      case 3:
-        _state = VpnConnectionState.disconnecting;
-    }
-    _stateController.add(_state);
-  }
-
-  void _startDurationTimer() {
-    _durationTimer?.cancel();
-    _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (_connectTime != null) {
-        _stats = _stats.copyWith(
-          duration: DateTime.now().difference(_connectTime!),
-          serverName: _activeServer?.name,
-        );
-        _statsController.add(_stats);
-      }
-    });
-  }
+  // ─── VpnService interface ───
 
   @override
   Future<bool> connect(VpnServer server) async {
+    _activeServer = server;
+    _accumulatedUpload = 0;
+    _accumulatedDownload = 0;
+    _updateState(VpnConnectionState.connecting);
+
+    final config = SingboxConfigGenerator.generate(server);
+    _addLog(
+      VpnLogLevel.info,
+      'Подключение к ${server.name} (${server.address}:${server.port})',
+    );
+    _addLog(
+      VpnLogLevel.info,
+      'Конфиг (${config.length} bytes): '
+      '${config.length > 500 ? '${config.substring(0, 500)}...' : config}',
+    );
+
     try {
-      _activeServer = server;
-      _state = VpnConnectionState.connecting;
-      _stateController.add(_state);
-      _accumulatedUpload = 0;
-      _accumulatedDownload = 0;
-
-      final config = SingboxConfigGenerator.generate(server);
-      _addLog(
-        VpnLogLevel.info,
-        'Подключение к ${server.name} (${server.address}:${server.port})',
-      );
-      _addLog(
-        VpnLogLevel.info,
-        'Конфиг (${config.length} bytes): '
-        '${config.length > 500 ? '${config.substring(0, 500)}...' : config}',
-      );
-
-      try {
-        await _singbox.saveConfig(config);
-        _addLog(VpnLogLevel.info, 'saveConfig OK');
-        // ignore: avoid_catches_without_on_clauses
-      } catch (e) {
-        _addLog(VpnLogLevel.error, 'saveConfig FAILED: $e');
-        _state = VpnConnectionState.error;
-        _activeServer = null;
-        _stateController.add(_state);
-        return false;
-      }
-
-      bool started;
-      try {
-        started = await _singbox.startVPN().timeout(
-          const Duration(seconds: 60),
-          onTimeout: () {
-            _addLog(VpnLogLevel.error, 'startVPN таймаут (60с)');
-            return false;
-          },
-        );
-        _addLog(VpnLogLevel.info, 'startVPN вернул: $started');
-        // ignore: avoid_catches_without_on_clauses
-      } catch (e) {
-        _addLog(VpnLogLevel.error, 'startVPN EXCEPTION: $e');
-        started = false;
-      }
-
-      if (!started) {
-        _state = VpnConnectionState.error;
-        _activeServer = null;
-        _stateController.add(_state);
-        _addLog(VpnLogLevel.error, 'Не удалось запустить VPN');
-        return false;
-      }
-
-      // Ждём подтверждения что сервис реально стартанул
-      // (statusCode == 2 = Started)
-      _addLog(VpnLogLevel.info, 'Ожидание статуса Started...');
-      final completer = Completer<VpnConnectionState>();
-      late StreamSubscription sub;
-      late StreamSubscription logSub;
-      final singboxLogs = <String>[];
-      sub = _stateController.stream.listen((state) {
-        if (state == VpnConnectionState.connected) {
-          if (!completer.isCompleted) completer.complete(state);
-          sub.cancel();
-          logSub.cancel();
-        } else if (state == VpnConnectionState.disconnected) {
-          if (!completer.isCompleted) completer.complete(state);
-          sub.cancel();
-          logSub.cancel();
-        }
-      });
-      // Collect sing-box logs during connection attempt
-      logSub = _singbox.onLogMessage.listen((logEvent) {
-        if (logEvent['type'] == 'log') {
-          final msg = logEvent['message'] as String? ?? '';
-          singboxLogs.add(msg);
-        }
-      });
-      // Also try to get buffered logs from sing-box
-      try {
-        final buffered = await _singbox.getLogs();
-        if (buffered.isNotEmpty) {
-          singboxLogs.addAll(buffered);
-          _addLog(
-            VpnLogLevel.info,
-            'Получено ${buffered.length} буферизованных логов sing-box',
-          );
-        }
-        // ignore: avoid_catches_without_on_clauses
-      } catch (_) {}
-
-      try {
-        final confirmedState = await completer.future.timeout(
-          const Duration(seconds: 30),
-          onTimeout: () {
-            _addLog(
-              VpnLogLevel.error,
-              'Таймаут ожидания статуса Started (30с)',
-            );
-            return VpnConnectionState.disconnected;
-          },
-        );
-        if (confirmedState != VpnConnectionState.connected) {
-          // Log collected sing-box messages for diagnostics
-          if (singboxLogs.isNotEmpty) {
-            for (final msg in singboxLogs) {
-              _addLog(VpnLogLevel.debug, 'sing-box: $msg');
-            }
-          } else {
-            _addLog(
-              VpnLogLevel.debug,
-              'sing-box: нет логов (sing-box не запустил ядро?)',
-            );
-          }
-          _addLog(
-            VpnLogLevel.error,
-            'VPN не перешёл в connected, состояние: $confirmedState',
-          );
-          _state = VpnConnectionState.error;
-          _activeServer = null;
-          _stateController.add(_state);
-          return false;
-        }
-        _addLog(VpnLogLevel.info, 'VPN подтверждён: connected');
-      } finally {
-        await sub.cancel();
-      }
-
+      await _client.connect(SessionOptions(
+        config: config,
+        networkMode: NetworkMode.vpn,
+      ));
+      _addLog(VpnLogLevel.info, 'connect OK');
       return true;
       // ignore: avoid_catches_without_on_clauses
     } catch (e) {
-      _state = VpnConnectionState.error;
-      _activeServer = null;
-      _stateController.add(_state);
-      _addLog(VpnLogLevel.error, 'Ошибка подключения: $e');
+      _addLog(VpnLogLevel.error, 'connect FAILED: $e');
+      _updateState(VpnConnectionState.error);
       return false;
     }
   }
 
   @override
   Future<bool> disconnect() async {
+    _updateState(VpnConnectionState.disconnecting);
     try {
-      _state = VpnConnectionState.disconnecting;
-      _stateController.add(_state);
-      return await _singbox.stopVPN();
+      await _client.disconnect();
+      _addLog(VpnLogLevel.info, 'disconnect OK');
+      return true;
       // ignore: avoid_catches_without_on_clauses
     } catch (e) {
+      _addLog(VpnLogLevel.error, 'disconnect FAILED: $e');
       return false;
     }
   }
 
   @override
-  Future<String> getStatus() async => _singbox.getVPNStatus();
+  Future<void> updateServers(List<VpnServer> servers) async {
+    _servers.clear();
+    _servers.addAll(servers);
+    _serversController.add(List.unmodifiable(_servers));
+    await _saveServers();
+  }
 
   @override
-  Future<List<InstalledApp>> getInstalledApps() async {
-    final result = await _singbox.getInstalledApps();
-    final apps = <InstalledApp>[];
-    for (final item in result) {
-      final map = item as Map;
-      final pkg = map['packageName'] as String? ?? '';
-      final name = map['appName'] as String? ?? pkg.split('.').last;
-      if (pkg.isNotEmpty) {
-        apps.add(InstalledApp(packageName: pkg, appName: name));
-      }
+  Future<String> getStatus() async {
+    try {
+      final serviceState = await _client.getServiceState();
+      return serviceState.name;
+      // ignore: avoid_catches_without_on_clauses
+    } catch (_) {
+      return _state.name;
     }
-    return apps;
-  }
-
-  @override
-  Future<void> setPerAppProxyMode(String mode) async {
-    await _singbox.setPerAppProxyMode(mode);
-  }
-
-  @override
-  Future<void> setPerAppProxyList(List<String> packages) async {
-    await _singbox.setPerAppProxyList(packages);
-  }
-
-  @override
-  Future<List<String>> getPerAppProxyList() async =>
-      _singbox.getPerAppProxyList();
-
-  void _addLog(VpnLogLevel level, String message) {
-    final entry = VpnLogEntry(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      timestamp: DateTime.now(),
-      level: level,
-      message: message,
-    );
-    _logs.add(entry);
-    if (_logs.length > 500) _logs.removeAt(0);
-    _logController.add(entry);
   }
 
   @override
   Future<void> clearLogs() async {
     _logs.clear();
-    await _singbox.clearLogs();
+    _logController.add(VpnLogEntry(
+      id: 'clear',
+      timestamp: DateTime.now(),
+      level: VpnLogLevel.info,
+      message: 'Logs cleared',
+    ));
   }
 
   @override
-  void dispose() {
-    _durationTimer?.cancel();
-    _stateController.close();
-    _statsController.close();
-    _logController.close();
+  Future<List<InstalledApp>> getInstalledApps() async {
+    // flutter_singbox_client doesn't expose installed apps
+    return [];
+  }
+
+  @override
+  Future<void> setPerAppProxyMode(String mode) async {
+    // Not supported via flutter_singbox_client yet
+  }
+
+  @override
+  Future<void> setPerAppProxyList(List<String> packages) async {
+    // Not supported via flutter_singbox_client yet
+  }
+
+  @override
+  Future<List<String>> getPerAppProxyList() async {
+    return [];
   }
 
   @override
   Future<bool> copyConfigToClipboard(VpnServer server) async => false;
+
+  @override
+  Future<void> dispose() async {
+    _stopDurationTimer();
+    await _stateSub?.cancel();
+    await _trafficSub?.cancel();
+    await _logSub?.cancel();
+    await _faultSub?.cancel();
+    await _client.dispose();
+    await _stateController.close();
+    await _statsController.close();
+    await _logController.close();
+    await _serversController.close();
+  }
 }
