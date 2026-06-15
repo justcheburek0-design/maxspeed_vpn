@@ -40,4 +40,8 @@ class UpdateManager {
   Future<void> checkForUpdate() async {}
   Future<void> downloadAndInstall(BuildContext context) async {}
   Future<dynamic> getDownloadedApk(String version) async => null;
+
+  bool get isPaused => false;
+  void pauseDownload() {}
+  Future<void> resumeDownload() async {}
 }
