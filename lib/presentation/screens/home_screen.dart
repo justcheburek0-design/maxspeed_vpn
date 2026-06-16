@@ -1014,8 +1014,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     await _applyPerAppProxy();
     // connect() is fire-and-forget — result arrives via stateStream.
     // Error shows through _stateListener (stateStream.listen).
-    // ignore: unawaited_futures
-    widget.vpnService.connect(server);
+    unawaited(widget.vpnService.connect(server));
   }
 
   Future<void> _applyPerAppProxy() async {
