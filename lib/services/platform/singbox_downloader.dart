@@ -60,6 +60,14 @@ class SingboxDownloader {
     return null;
   }
 
+  /// Fallback mirror URLs tried if GitHub direct fails.
+  static const List<String> _mirrorTemplates = [
+    'https://github.com/SagerNet/sing-box/releases/download/v{VERSION}/sing-box-{VERSION}-{ARCHIVE}',
+    'https://ghfast.top/https://github.com/SagerNet/sing-box/releases/download/v{VERSION}/sing-box-{VERSION}-{ARCHIVE}',
+    'https://github.moeyy.xyz/https://github.com/SagerNet/sing-box/releases/download/v{VERSION}/sing-box-{VERSION}-{ARCHIVE}',
+    'https://gh-proxy.com/https://github.com/SagerNet/sing-box/releases/download/v{VERSION}/sing-box-{VERSION}-{ARCHIVE}',
+  ];
+
   /// Download sing-box binary. Returns path to binary or null on failure.
   /// [onProgress] is called with (downloadedBytes, totalBytes).
   static Future<String?> download({
@@ -68,13 +76,45 @@ class SingboxDownloader {
     final version = await _fetchLatestVersion();
     if (version == null) return null;
 
-    final url =
-        'https://github.com/SagerNet/sing-box/releases/download/v$version/sing-box-$version-$_platformArchive';
-
     final dir = await _cacheDir;
-    final archivePath = '$dir/sing-box-$version-$_platformArchive';
     final outputPath = await binaryPath;
 
+    // Try each mirror until one works
+    for (final template in _mirrorTemplates) {
+      final url = template
+          .replaceFirst('{VERSION}', version)
+          .replaceFirst('{ARCHIVE}', _platformArchive);
+
+      final archivePath = '$dir/sing-box-$version-$_platformArchive';
+
+      try {
+        final result = await _downloadAndExtract(
+          url: url,
+          archivePath: archivePath,
+          outputPath: outputPath,
+          dir: dir,
+          version: version,
+          onProgress: onProgress,
+        );
+        if (result != null) return result;
+        // Try continue to next mirror
+        // ignore: avoid_catches_without_on_clauses
+      } catch (_) {
+        // Try next mirror
+      }
+    }
+
+    return null;
+  }
+
+  static Future<String?> _downloadAndExtract({
+    required String url,
+    required String archivePath,
+    required String outputPath,
+    required String dir,
+    required String version,
+    void Function(int downloaded, int total)? onProgress,
+  }) async {
     // Download archive
     try {
       final request = http.Request('get', Uri.parse(url));
@@ -99,7 +139,6 @@ class SingboxDownloader {
 
       // Extract
       if (_archiveName.endsWith('.zip')) {
-        // Windows: unzip
         if (Platform.isWindows) {
           final result = await Process.run('powershell', [
             '-Command',
@@ -111,7 +150,6 @@ class SingboxDownloader {
             '-Force',
           ]);
           if (result.exitCode != 0) {
-            // Fallback: try 7z or manual
             return null;
           }
         } else {
@@ -124,7 +162,6 @@ class SingboxDownloader {
           if (result.exitCode != 0) return null;
         }
       } else {
-        // tar.gz: extract
         final result = await Process.run('tar', [
           '-xzf',
           archivePath,

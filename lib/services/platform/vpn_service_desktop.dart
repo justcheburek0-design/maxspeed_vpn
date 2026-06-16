@@ -64,6 +64,29 @@ class DesktopVpnService implements VpnService {
       VpnLogLevel.info,
       'OS: ${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
     );
+    // Pre-download sing-box in background if not cached
+    _preloadSingbox();
+  }
+
+  /// Pre-download sing-box binary on startup if not already cached.
+  /// Runs silently in background — user doesn't see download on connect.
+  Future<void> _preloadSingbox() async {
+    try {
+      if (!await SingboxDownloader.isDownloaded()) {
+        _addLog(VpnLogLevel.info, 'sing-box not cached, preloading...');
+        final path = await SingboxDownloader.download();
+        if (path != null) {
+          _addLog(VpnLogLevel.info, 'sing-box preloaded: $path');
+        } else {
+          _addLog(
+            VpnLogLevel.warning,
+            'sing-box preload failed, will retry on connect',
+          );
+        }
+      }
+    } on Exception catch (_) {
+      // Silently ignore — will retry on connect attempt
+    }
   }
 
   // ── Binary discovery ──
