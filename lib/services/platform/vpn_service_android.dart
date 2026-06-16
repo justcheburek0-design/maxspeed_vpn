@@ -287,8 +287,9 @@ class AndroidVpnService implements VpnService {
       '${config.length > 500 ? '${config.substring(0, 500)}...' : config}',
     );
 
-    // Fire-and-forget: _client.connect() блокирует main thread через
-    // MethodChannel, поэтому запускаем без await — результат придёт через stateStream.
+    // Fire-and-forget: MethodChannel blocks main thread, so we don't await.
+    // Result arrives via stateStream.
+    // ignore: unawaited_futures
     _client
         .connect(SessionOptions(config: config))
         .then((_) {
@@ -304,6 +305,7 @@ class AndroidVpnService implements VpnService {
   @override
   Future<bool> disconnect() async {
     _updateState(VpnConnectionState.disconnecting);
+    // ignore: unawaited_futures
     _client
         .disconnect()
         .then((_) {

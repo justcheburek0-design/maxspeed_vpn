@@ -1012,8 +1012,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     setState(() => _selectedServer = server);
     // Apply per-app proxy settings before connecting
     await _applyPerAppProxy();
-    // connect() теперь fire-and-forget — результат придёт через stateStream.
-    // Ошибка покажется через обработчик _stateListener (stateStream.listen).
+    // connect() is fire-and-forget — result arrives via stateStream.
+    // Error shows through _stateListener (stateStream.listen).
+    // ignore: unawaited_futures
     widget.vpnService.connect(server);
   }
 
