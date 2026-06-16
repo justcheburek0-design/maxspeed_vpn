@@ -288,9 +288,7 @@ class AndroidVpnService implements VpnService {
     );
 
     try {
-      await _client.connect(
-        SessionOptions(config: config, networkMode: NetworkMode.vpn),
-      );
+      await _client.connect(SessionOptions(config: config));
       _addLog(VpnLogLevel.info, 'connect OK');
       return true;
       // ignore: avoid_catches_without_on_clauses
@@ -317,8 +315,9 @@ class AndroidVpnService implements VpnService {
 
   @override
   Future<void> updateServers(List<VpnServer> servers) async {
-    _servers.clear();
-    _servers.addAll(servers);
+    _servers
+      ..clear()
+      ..addAll(servers);
     _serversController.add(List.unmodifiable(_servers));
     await _saveServers();
   }
@@ -348,10 +347,7 @@ class AndroidVpnService implements VpnService {
   }
 
   @override
-  Future<List<InstalledApp>> getInstalledApps() async {
-    // flutter_singbox_client doesn't expose installed apps
-    return [];
-  }
+  Future<List<InstalledApp>> getInstalledApps() async => [];
 
   @override
   Future<void> setPerAppProxyMode(String mode) async {
@@ -364,9 +360,7 @@ class AndroidVpnService implements VpnService {
   }
 
   @override
-  Future<List<String>> getPerAppProxyList() async {
-    return [];
-  }
+  Future<List<String>> getPerAppProxyList() async => [];
 
   @override
   Future<bool> copyConfigToClipboard(VpnServer server) async => false;
