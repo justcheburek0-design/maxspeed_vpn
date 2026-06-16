@@ -284,6 +284,22 @@ jobs:
           export FLUTTER_MACOS_ENABLE_METAL=0
           flutter build macos --release
 
+      - name: Bundle sing-box into macOS arm64 .app
+        run: |
+          APP=""
+          for p in "build/macos/Build/Products/Release/maxspeed_vpn.app" "build/macos/Build/Products/Release/Runner.app"; do
+            if [ -d "$p" ]; then APP="$p"; break; fi
+          done
+          if [ -z "$APP" ]; then
+            echo "ERROR: .app not found"
+            find build/macos/Build/Products/Release -maxdepth 2 -type d 2>/dev/null
+            exit 1
+          fi
+          echo "Found app at: $APP"
+          cp macos/sing-box "$APP/Contents/MacOS/sing-box"
+          chmod +x "$APP/Contents/MacOS/sing-box"
+          echo "sing-box bundled into .app"
+
       - name: Package arm64 dmg
         run: |
           APP=""
@@ -313,6 +329,22 @@ jobs:
         run: |
           export FLUTTER_MACOS_ENABLE_METAL=0
           arch -x86_64 flutter build macos --release
+
+      - name: Bundle sing-box into macOS x86_64 .app
+        run: |
+          APP=""
+          for p in "build/macos/Build/Products/Release/maxspeed_vpn.app" "build/macos/Build/Products/Release/Runner.app"; do
+            if [ -d "$p" ]; then APP="$p"; break; fi
+          done
+          if [ -z "$APP" ]; then
+            echo "ERROR: .app not found"
+            find build/macos/Build/Products/Release -maxdepth 2 -type d 2>/dev/null
+            exit 1
+          fi
+          echo "Found app at: $APP"
+          cp macos/sing-box "$APP/Contents/MacOS/sing-box"
+          chmod +x "$APP/Contents/MacOS/sing-box"
+          echo "sing-box bundled into .app"
 
       - name: Package x86_64 dmg
         run: |
