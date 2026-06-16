@@ -289,23 +289,29 @@ class AndroidVpnService implements VpnService {
 
     // Fire-and-forget: _client.connect() блокирует main thread через
     // MethodChannel, поэтому запускаем без await — результат придёт через stateStream.
-    _client.connect(SessionOptions(config: config)).then((_) {
-      _addLog(VpnLogLevel.info, 'connect OK');
-    }).catchError((e) {
-      _addLog(VpnLogLevel.error, 'connect FAILED: $e');
-      _updateState(VpnConnectionState.error);
-    });
+    _client
+        .connect(SessionOptions(config: config))
+        .then((_) {
+          _addLog(VpnLogLevel.info, 'connect OK');
+        })
+        .catchError((e) {
+          _addLog(VpnLogLevel.error, 'connect FAILED: $e');
+          _updateState(VpnConnectionState.error);
+        });
     return true;
   }
 
   @override
   Future<bool> disconnect() async {
     _updateState(VpnConnectionState.disconnecting);
-    _client.disconnect().then((_) {
-      _addLog(VpnLogLevel.info, 'disconnect OK');
-    }).catchError((e) {
-      _addLog(VpnLogLevel.error, 'disconnect FAILED: $e');
-    });
+    _client
+        .disconnect()
+        .then((_) {
+          _addLog(VpnLogLevel.info, 'disconnect OK');
+        })
+        .catchError((e) {
+          _addLog(VpnLogLevel.error, 'disconnect FAILED: $e');
+        });
     return true;
   }
 
