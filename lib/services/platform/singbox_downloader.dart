@@ -55,8 +55,7 @@ class SingboxDownloader {
           return tag.substring(1); // strip 'v' prefix
         }
       }
-      // ignore: avoid_catches_without_on_clauses
-    } catch (_) {}
+    } on Exception catch (_) {}
     return null;
   }
 

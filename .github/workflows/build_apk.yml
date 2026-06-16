@@ -113,6 +113,25 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Download sing-box (Linux)
+        run: |
+          API="https://api.github.com/repos/SagerNet/sing-box/releases/latest"
+          VERSION=$(curl -s "$API" | grep '"tag_name"' | head -1 | sed 's/.*"v\([^"]*\)".*/\1/')
+          ARCHIVE="sing-box-${VERSION}-linux-amd64.tar.gz"
+          URL="https://github.com/SagerNet/sing-box/releases/download/v${VERSION}/${ARCHIVE}"
+          echo "Downloading $URL"
+          curl -L -o "$ARCHIVE" "$URL"
+          tar xzf "$ARCHIVE"
+          rm "$ARCHIVE"
+          if [ -f "sing-box-${VERSION}-linux-amd64/sing-box" ]; then
+            mv "sing-box-${VERSION}-linux-amd64/sing-box" linux/sing-box
+            rm -rf "sing-box-${VERSION}-linux-amd64"
+          elif [ -f "sing-box" ]; then
+            mv sing-box linux/sing-box
+          fi
+          chmod +x linux/sing-box
+          echo "sing-box placed in linux/"
+
       - name: Install Linux deps
         run: |
           sudo apt-get update
@@ -156,6 +175,25 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
+
+      - name: Download sing-box (Windows)
+        shell: powershell
+        run: |
+          $api = Invoke-RestMethod -Uri "https://api.github.com/repos/SagerNet/sing-box/releases/latest"
+          $version = $api.tag_name -replace '^v',''
+          $archive = "sing-box-${version}-windows-amd64.zip"
+          $url = "https://github.com/SagerNet/sing-box/releases/download/v${version}/${archive}"
+          Write-Host "Downloading $url"
+          Invoke-WebRequest -Uri $url -OutFile $archive -UseBasicParsing
+          Expand-Archive -Path $archive -DestinationPath "." -Force
+          Remove-Item $archive
+          if (Test-Path "sing-box-${version}-windows-amd64/sing-box.exe") {
+            Move-Item "sing-box-${version}-windows-amd64/sing-box.exe" "windows/runner/sing-box.exe" -Force
+            Remove-Item "sing-box-${version}-windows-amd64" -Recurse -Force
+          } elseif (Test-Path "sing-box.exe") {
+            Move-Item "sing-box.exe" "windows/runner/sing-box.exe" -Force
+          }
+          Write-Host "sing-box.exe placed in windows/runner/"
 
       - name: Enable Windows desktop
         run: flutter config --enable-windows-desktop
@@ -217,6 +255,25 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
+
+      - name: Download sing-box (macOS)
+        run: |
+          API="https://api.github.com/repos/SagerNet/sing-box/releases/latest"
+          VERSION=$(curl -s "$API" | grep '"tag_name"' | head -1 | sed 's/.*"v\([^"]*\)".*/\1/')
+          ARCHIVE="sing-box-${VERSION}-darwin-amd64.tar.gz"
+          URL="https://github.com/SagerNet/sing-box/releases/download/v${VERSION}/${ARCHIVE}"
+          echo "Downloading $URL"
+          curl -L -o "$ARCHIVE" "$URL"
+          tar xzf "$ARCHIVE"
+          rm "$ARCHIVE"
+          if [ -f "sing-box-${VERSION}-darwin-amd64/sing-box" ]; then
+            mv "sing-box-${VERSION}-darwin-amd64/sing-box" macos/sing-box
+            rm -rf "sing-box-${VERSION}-darwin-amd64"
+          elif [ -f "sing-box" ]; then
+            mv sing-box macos/sing-box
+          fi
+          chmod +x macos/sing-box
+          echo "sing-box placed in macos/"
 
       - name: Enable macOS desktop
         run: flutter config --enable-macos-desktop
