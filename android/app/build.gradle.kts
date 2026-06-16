@@ -22,8 +22,8 @@ android {
         applicationId = "ru.maxspeed.maxspeed_vpn"
         minSdk = 24
         targetSdk = 35
-        versionCode = 27
-        versionName = "1.4.15+27"
+        versionCode = 16062602
+        versionName = "16.06.26+2"
         // Limit ABIs to reduce APK size (no splits — single universal APK)
         ndk {
             abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a", "x86_64"))

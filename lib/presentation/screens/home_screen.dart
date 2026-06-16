@@ -53,6 +53,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             widget.vpnService.activeServer != null) {
           _selectedServer = widget.vpnService.activeServer;
         }
+        if (s == VpnConnectionState.error) {
+          showAppNotification(
+            context,
+            'Не удалось подключиться. Проверьте настройки.',
+            isError: true,
+            duration: const Duration(seconds: 3),
+          );
+        }
       }
     });
     widget.vpnService.statsStream.listen((s) {
@@ -1004,15 +1012,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     setState(() => _selectedServer = server);
     // Apply per-app proxy settings before connecting
     await _applyPerAppProxy();
-    final success = await widget.vpnService.connect(server);
-    if (!success && mounted) {
-      showAppNotification(
-        context,
-        'Не удалось подключиться. Проверьте настройки.',
-        isError: true,
-        duration: const Duration(seconds: 3),
-      );
-    }
+    // connect() теперь fire-and-forget — результат придёт через stateStream.
+    // Ошибка покажется через обработчик _stateListener (stateStream.listen).
+    widget.vpnService.connect(server);
   }
 
   Future<void> _applyPerAppProxy() async {
