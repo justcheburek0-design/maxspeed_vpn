@@ -60,6 +60,23 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Patch flutter_singbox_client AAR with mbox (MiERU support)
+        run: |
+          AAR_PATH="$HOME/.pub-cache/hosted/pub.dev/flutter_singbox_client-*/android/libs/libbox.aar"
+          AAR_FILE=$(ls $AAR_PATH 2>/dev/null | head -1)
+          if [ -n "$AAR_FILE" ] && [ -f "$AAR_FILE" ]; then
+            echo "Patching $AAR_FILE with mbox build..."
+            AAR_URL="https://github.com/justcheburek0-design/maxspeed_vpn/releases/download/mbox-patch/libbox_mbox.aar"
+            if curl -sL "$AAR_URL" -o /tmp/libbox_mbox.aar 2>/dev/null && [ -s /tmp/libbox_mbox.aar ]; then
+              cp /tmp/libbox_mbox.aar "$AAR_FILE"
+              echo "✓ Patched with mbox AAR ($(stat -c%s "$AAR_FILE") bytes)"
+            else
+              echo "WARNING: Could not download mbox AAR, using original sing-box"
+            fi
+          else
+            echo "libbox.aar not found, skipping patch"
+          fi
+
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
@@ -113,24 +130,13 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Download sing-box (Linux)
+      - name: Download sing-box (Linux) — mbox with MiERU
         run: |
-          API="https://api.github.com/repos/SagerNet/sing-box/releases/latest"
-          VERSION=$(curl -s "$API" | grep '"tag_name"' | head -1 | sed 's/.*"v\([^"]*\)".*/\1/')
-          ARCHIVE="sing-box-${VERSION}-linux-amd64.tar.gz"
-          URL="https://github.com/SagerNet/sing-box/releases/download/v${VERSION}/${ARCHIVE}"
-          echo "Downloading $URL"
-          curl -L -o "$ARCHIVE" "$URL"
-          tar xzf "$ARCHIVE"
-          rm "$ARCHIVE"
-          if [ -f "sing-box-${VERSION}-linux-amd64/sing-box" ]; then
-            mv "sing-box-${VERSION}-linux-amd64/sing-box" linux/sing-box
-            rm -rf "sing-box-${VERSION}-linux-amd64"
-          elif [ -f "sing-box" ]; then
-            mv sing-box linux/sing-box
-          fi
+          MBOX_URL="https://github.com/justcheburek0-design/maxspeed_vpn/releases/download/mbox-patch/mbox-linux-amd64"
+          echo "Downloading mbox (sing-box + mieru) for Linux..."
+          curl -sL "$MBOX_URL" -o linux/sing-box
           chmod +x linux/sing-box
-          echo "sing-box placed in linux/"
+          echo "mbox placed in linux/ ($(stat -c%s linux/sing-box) bytes)"
 
       - name: Install Linux deps
         run: |
