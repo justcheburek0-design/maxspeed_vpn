@@ -83,17 +83,15 @@ class SingboxConfigGenerator {
     }
   }
 
-  static Map<String, dynamic> _buildMieruOutbound(VpnServer server) {
-    return {
-      'type': 'mieru',
-      'tag': 'vpn',
-      'server': server.address,
-      'server_port': server.port,
-      'username': server.username ?? '',
-      'password': server.uuid ?? '',
-      'multiplexing': server.rawConfig['multiplexing'] ?? 'MULTIPLEXING_MIDDLE',
-    };
-  }
+  static Map<String, dynamic> _buildMieruOutbound(VpnServer server) => {
+    'type': 'mieru',
+    'tag': 'vpn',
+    'server': server.address,
+    'server_port': server.port,
+    'username': server.username ?? '',
+    'password': server.uuid ?? '',
+    'multiplexing': server.rawConfig['multiplexing'] ?? 'MULTIPLEXING_MIDDLE',
+  };
 
   static Map<String, dynamic> _buildVlessOutbound(VpnServer server) {
     final outbound = <String, dynamic>{
