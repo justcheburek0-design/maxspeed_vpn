@@ -107,7 +107,7 @@ jobs:
       - name: Upload APK artifacts (split)
         uses: actions/upload-artifact@v4
         with:
-          name: apk-release
+          name: apk-mbox-release
           path: build/app/outputs/apk/release/*.apk
 
   # ─── Linux Desktop ─────────────────────────────
