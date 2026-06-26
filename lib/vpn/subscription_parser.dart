@@ -35,6 +35,8 @@ class SubscriptionParser {
         server = _parseVmess(link);
       } else if (link.startsWith('ss://')) {
         server = _parseShadowsocks(link);
+      } else if (link.startsWith('mieru://')) {
+        server = _parseMieru(link);
       } else if (link.startsWith('naive+https://') ||
           link.startsWith('naive+http://')) {
         server = _parseNaive(link);
@@ -154,6 +156,41 @@ class SubscriptionParser {
         protocol: VpnProtocol.shadowsocks,
         uuid: pass,
         rawConfig: {'link': link, 'method': method},
+      );
+      // ignore: avoid_catches_without_on_clauses
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static VpnServer? _parseMieru(String link) {
+    try {
+      final uri = Uri.parse(link);
+      final userInfo = uri.userInfo;
+      String? username;
+      String? password;
+      if (userInfo.isNotEmpty) {
+        final parts = userInfo.split(':');
+        if (parts.length >= 2) {
+          username = parts[0];
+          password = parts.sublist(1).join(':');
+        } else {
+          username = userInfo;
+        }
+      }
+      final name = uri.fragment.isNotEmpty
+          ? Uri.decodeComponent(uri.fragment)
+          : uri.host;
+      return VpnServer(
+        id: 'mieru_${uri.host}_${uri.port}_${username ?? ''}',
+        name: name,
+        address: uri.host,
+        port: uri.port,
+        protocol: VpnProtocol.mieru,
+        security: VpnSecurity.tls,
+        username: username,
+        uuid: password,
+        rawConfig: {'link': link},
       );
       // ignore: avoid_catches_without_on_clauses
     } catch (_) {

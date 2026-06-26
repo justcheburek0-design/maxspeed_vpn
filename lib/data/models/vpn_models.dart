@@ -1,4 +1,5 @@
 enum VpnProtocol {
+  mieru,
   naive,
   vless,
   vmess,
@@ -13,6 +14,8 @@ enum VpnProtocol {
 extension VpnProtocolExt on VpnProtocol {
   String get displayName {
     switch (this) {
+      case VpnProtocol.mieru:
+        return 'MiERU';
       case VpnProtocol.naive:
         return 'Naive';
       case VpnProtocol.vless:

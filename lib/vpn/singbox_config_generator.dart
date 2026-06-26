@@ -68,6 +68,8 @@ class SingboxConfigGenerator {
 
   static Map<String, dynamic> _buildOutbound(VpnServer server) {
     switch (server.protocol) {
+      case VpnProtocol.mieru:
+        return _buildMieruOutbound(server);
       case VpnProtocol.vless:
         return _buildVlessOutbound(server);
       case VpnProtocol.trojan:
@@ -79,6 +81,18 @@ class SingboxConfigGenerator {
       default:
         return _buildVlessOutbound(server);
     }
+  }
+
+  static Map<String, dynamic> _buildMieruOutbound(VpnServer server) {
+    return {
+      'type': 'mieru',
+      'tag': 'vpn',
+      'server': server.address,
+      'server_port': server.port,
+      'username': server.username ?? '',
+      'password': server.uuid ?? '',
+      'multiplexing': server.rawConfig['multiplexing'] ?? 'MULTIPLEXING_MIDDLE',
+    };
   }
 
   static Map<String, dynamic> _buildVlessOutbound(VpnServer server) {

@@ -53,6 +53,6 @@ class SubscriptionConstants {
 class SettingsConstants {
   SettingsConstants._();
 
-  static const String protocolDisplay = 'VLESS / REALITY';
-  static const String engineDisplay = 'sing-box v1.13';
+  static const String protocolDisplay = 'VLESS / REALITY / MiERU / Naive';
+  static const String engineDisplay = 'mbox (sing-box + mieru)';
 }
