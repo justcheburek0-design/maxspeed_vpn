@@ -266,15 +266,15 @@ jobs:
         run: |
           API="https://api.github.com/repos/SagerNet/sing-box/releases/latest"
           VERSION=$(curl -s "$API" | grep '"tag_name"' | head -1 | sed 's/.*"v\([^"]*\)".*/\1/')
-          ARCHIVE="sing-box-${VERSION}-darwin-amd64.tar.gz"
+          ARCHIVE="sing-box-${VERSION}-darwin-arm64.tar.gz"
           URL="https://github.com/SagerNet/sing-box/releases/download/v${VERSION}/${ARCHIVE}"
           echo "Downloading $URL"
           curl -L -o "$ARCHIVE" "$URL"
           tar xzf "$ARCHIVE"
           rm "$ARCHIVE"
-          if [ -f "sing-box-${VERSION}-darwin-amd64/sing-box" ]; then
-            mv "sing-box-${VERSION}-darwin-amd64/sing-box" macos/sing-box
-            rm -rf "sing-box-${VERSION}-darwin-amd64"
+          if [ -f "sing-box-${VERSION}-darwin-arm64/sing-box" ]; then
+            mv "sing-box-${VERSION}-darwin-arm64/sing-box" macos/sing-box
+            rm -rf "sing-box-${VERSION}-darwin-arm64"
           elif [ -f "sing-box" ]; then
             mv sing-box macos/sing-box
           fi
